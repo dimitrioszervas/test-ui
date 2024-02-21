@@ -8,6 +8,8 @@
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.6.7",
     "cbor": "^9.0.2",
+    "cbor-js": "^0.1.0",
+    "cbor-web": "^9.0.2",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "react": "^18.2.0",

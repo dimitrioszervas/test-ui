@@ -1095,6 +1095,115 @@ export class ReceivedShards {
     }
 }
 
+  // Helper functions
+
+  // Calculate padding for data
+  export function calculateDataPadding(dataSize, numShards)
+  {
+      if (dataSize < numShards)
+      {
+          return numShards;
+      }
+      let rem = dataSize % numShards;
+      if (rem != 0)
+      {
+          let newSize = numShards * Math.trunc((dataSize / numShards) + 0.9);
+          if (newSize < dataSize)
+          {
+              newSize += numShards;
+          }
+          return dataSize + (newSize - dataSize);
+      }
+      else
+      {
+          return dataSize;
+      }
+  }
+
+  // calculate number of shards
+  export function calculateNShards(dataSize, nServers)
+  {
+
+      let nShards = (1 + Math.trunc(dataSize / 256)) * nServers;
+
+      if (nShards > 255)
+      {
+          nShards = 255;
+      }
+
+      return nShards;
+  }
+
+  // calculate Reed-Solomon shards a 2D array named dataShards
+  export function calculateReedSolomonShards(
+      dataBytes,
+      totalNShards,
+      parityNShards,
+      dataNShards)
+  {
+
+    let paddedDataSize = calculateDataPadding(dataBytes.length + 1, dataNShards);
+
+    let dataShardLength = Math.trunc(paddedDataSize / dataNShards);
+
+    let dataShards = [];
+    for (let i = 0; i < totalNShards; i++)
+    {
+        dataShards[i] = new Uint8Array(dataShardLength);
+    }
+
+    let paddedDataBytes = [];
+    for (let i = 0; i < dataBytes.length; i++) {
+        paddedDataBytes[i] = dataBytes[i];
+    }
+    paddedDataBytes[dataBytes.length] = 1;
+
+    let shardNo = 0;
+    let metadataOffset = 0;
+
+    for (let i = 1; i <= dataNShards; i++)
+    {
+        for (let j = 0; j < dataShardLength; j++) {
+            dataShards[shardNo][j] =  paddedDataBytes[metadataOffset + j];
+        }
+
+        metadataOffset += dataShardLength;
+
+        shardNo++;
+    }
+
+    let reedSolomon = new ReedSolomon(dataNShards, parityNShards);
+
+    reedSolomon.encodeParity(dataShards, 0, dataShardLength);
+
+    return dataShards;
+  }
+
+  export function StripPadding(paddedData)
+  {  
+      let padding = 1;
+      for (let i = paddedData.length - 1; i >= 0; i--)
+      {
+          if (paddedData[i] === 0)
+          {
+              padding++;
+          }
+          else
+          {
+              break;
+          }
+      }
+
+      let strippedData = new Uint8Array(paddedData.length - padding); 
+     
+      for (let i = 0; i < strippedData.length; i++) {
+        strippedData[i] = paddedData[i];
+      }
+
+      return strippedData;    
+  }
+
+
 
 
 

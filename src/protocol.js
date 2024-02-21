@@ -1,5 +1,9 @@
 import axios from "axios";
 import cbor from "cbor-js";
+import { calculateNShards } from "./ReedSolomon";
+import { calculateReedSolomonShards } from "./ReedSolomon";
+import { calculateDataPadding } from "./ReedSolomon";
+import { StripPadding } from "./ReedSolomon";
 
 // fucntion to generate n keys (here 3 keys).
 const generateNKeys = async (n, SRC, type, baseKey) => {
@@ -43,12 +47,15 @@ const generateNKeys = async (n, SRC, type, baseKey) => {
   }
 };
 
+
+
+
 /*
   data should be like this javascript object: 
   data = { id: string, name: string}
 */
 
-export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) => {
+export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, numSevers) => {
   try {
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
     let SECRET = await window.crypto.subtle.importKey("raw", new TextEncoder().encode("SECRET"), "HKDF", false, [
@@ -128,7 +135,32 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) 
     );
     console.log("🔥  SIGN: ", SIGN);
 
-    const n = 4; // n is to set how many keys need to be drived
+    // here data has data.name as encrypted field and other unencrypted fields
+    // state 1
+    let CBOR = data;
+    CBOR = cbor.encode(CBOR);
+    console.log("🔥  CBOR for State 1: ", CBOR);
+
+    // REED-SOLOMON /////////////////////////////////////////////////////////////////////
+
+    let finalCBORArray = new Uint8Array(CBOR);
+
+    let totalNShards = calculateNShards(finalCBORArray.length, numSevers);
+    let parityNShards = Math.trunc(totalNShards / 2);
+    let dataNShards = totalNShards - parityNShards;
+    let numShardsPerServer = Math.trunc(totalNShards / numSevers);
+
+    console.log("Test Reed-Solomon");
+    console.log("totalNShards: ", totalNShards);
+    console.log("parityNShards: ", parityNShards);
+    console.log("dataNShards: ", dataNShards);
+    console.log("numShardsPerServer: ", + numShardsPerServer);    
+
+    let transactionShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
+
+    // END REED-SOLOMON /////////////////////////////////////////////////////////////////
+  
+    const n = totalNShards; // n is to set how many keys need to be drived
 
     // creating n encryption keys from ENCRYPT i.e ENCRYPTS
     const ENCRYPTS = await generateNKeys(n, SRC, "encrypt", ENCRYPT);
@@ -142,16 +174,11 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) 
     console.log("🔥  NAME: ", NAME);
 
     // Encrypting the data.name i.e NAME with ENCRYPTS[0]
-    NAME = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: SRC }, ENCRYPTS[0], NAME);
-    console.log("🔥  Encrypted NAME: ", NAME);
-    data.name = NAME;
+    //NAME = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: SRC }, ENCRYPTS[0], NAME);
+    //console.log("🔥  Encrypted NAME: ", NAME);
+    //data.name = NAME;
 
-    // here data has data.name as encrypted field and other unencrypted fields
-    // state 1
-    let CBOR = data;
-    CBOR = cbor.encode(CBOR);
-    console.log("🔥  CBOR for State 1: ", CBOR);
-
+  
     // state 2
     const encoder = new TextEncoder();
 
@@ -185,23 +212,23 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) 
     // state 3
     // Assuming you have the finalCBOR from the previous step
     // Assuming finalCBOR is the ArrayBuffer containing the signed CBOR string
-    const finalCBORArray = Array.from(new Uint8Array(CBOR));
+    //const finalCBORArray = Array.from(new Uint8Array(CBOR));
 
     // Split the final CBOR array into two data shards
-    const shard1 = finalCBORArray.slice(0, finalCBORArray.length / 2);
-    const shard2 = finalCBORArray.slice(finalCBORArray.length / 2);
+    //const shard1 = finalCBORArray.slice(0, finalCBORArray.length / 2);
+    //const shard2 = finalCBORArray.slice(finalCBORArray.length / 2);
 
     // Calculate the parity shard by XORing the two data shards
-    let parityShard = shard1.map((byte, index) => byte ^ shard2[index]);
+    //let parityShard = shard1.map((byte, index) => byte ^ shard2[index]);
 
     // Convert data shards and parity shard back to ArrayBuffer
-    const dataShard1 = new Uint8Array(shard1).buffer;
-    const dataShard2 = new Uint8Array(shard2).buffer;
-    parityShard = new Uint8Array(parityShard).buffer;
-
-    console.log("Data Shard 1: ", dataShard1);
-    console.log("Data Shard 2: ", dataShard2);
-    console.log("Parity Shard: ", parityShard);
+    //const dataShard1 = new Uint8Array(shard1).buffer;
+    //const dataShard2 = new Uint8Array(shard2).buffer;
+    //parityShard = new Uint8Array(parityShard).buffer;
+    
+    //console.log("Data Shard 1: ", dataShard1);
+    //console.log("Data Shard 2: ", dataShard2);
+    //console.log("Parity Shard: ", parityShard);
 
     // state 3 - end
 
@@ -215,12 +242,18 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) 
     }
 
     // Encrypt each shard with the corresponding CryptoKey
-    const encryptedShard1 = await encryptShard(dataShard1, ENCRYPTS[1]);
-    const encryptedShard2 = await encryptShard(dataShard2, ENCRYPTS[2]);
-    const encryptedParityShard = await encryptShard(parityShard, ENCRYPTS[3]);
+    //const encryptedShard1 = await encryptShard(dataShard1, ENCRYPTS[1]);
+    //const encryptedShard2 = await encryptShard(dataShard2, ENCRYPTS[2]);
+    //const encryptedParityShard = await encryptShard(parityShard, ENCRYPTS[3]);
+
+    let encryptedShards = [];
+    for (let i = 0; i < transactionShards.length; i++) {
+      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);
+      encryptedShards.push(encryptedShard);
+    }
 
     // Create an array of encrypted shards
-    const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
+    //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
 
     // Convert SRC to regular array
     const srcArray = Array.from(new Uint8Array(SRC));
@@ -252,7 +285,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data) 
 
     // Send the binary string to the backend using Axios
     await axios
-      .post("http://localhost:4000/", BINARY_STRING, {
+      .post(endpoint, BINARY_STRING, {
         headers: {
           "Content-Type": "application/octet-stream",
         },
