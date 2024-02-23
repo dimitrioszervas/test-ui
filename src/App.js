@@ -17,10 +17,8 @@ function App() {
     ////////////////////////////////////////////////////////////////////////////
     // TEST CODE
 
-    let txt = "Hello";
-
     let numSevers = 3;
-    let data = { id: "b00a2bffc8e932e2", name: "dimitrios@sealstone.uk"};
+    let data = { id: "b00a2bffc8e932e2", name: "dimitri@sealstone.uk"};
 
     await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", data, numSevers);
     /*

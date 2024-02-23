@@ -282,7 +282,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // Convert CBORState5 to a binary string
     const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR));
     console.log("🔥  BINARY_STRING: ", BINARY_STRING);
-
+/*
     // Send the binary string to the backend using Axios
     await axios
       .post(endpoint, BINARY_STRING, {
@@ -296,6 +296,39 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
       .catch((error) => {
         console.error("Error sending data to backend:", error);
       });
+  } catch (error) {
+    console.error("Error in encryptDataAndSendtoServer:", error.message);
+  }
+  */
+   // Converting binary data into Blob
+   var blobObj = new Blob([BINARY_STRING], {type: 'application/octet-stream'});
+ 
+   // Creating FormData object
+   var obj = new FormData();
+
+   // Add data to the object
+   // Here myfile is the name of the form field
+   obj.append("myfile", blobObj);
+
+   // Sending data using POST request
+   await fetch(endpoint, {
+      // Adding POST request
+      method: "POST",
+      mode: 'no-cors',
+      // Adding body which we want to send
+      body: obj
+   })
+   // Handling the response
+   .then(response =>{
+     console.log(response.status);
+     if (response.ok) {
+         console.log("Binary data send Successfully: ", response.body);
+     }
+   })
+   // Handling the error
+   .catch(err=>{
+      console.log("Found error:", err)
+   });
   } catch (error) {
     console.error("Error in encryptDataAndSendtoServer:", error.message);
   }
