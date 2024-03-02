@@ -248,7 +248,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
-      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);
+      const encryptedShard = transactionShards[i];//await encryptShard(transactionShards[i], ENCRYPTS[i]);
       encryptedShards.push(encryptedShard);
     }
 
@@ -279,11 +279,17 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // Create CBOR for State 5 by combining CBORState4 and the HMAC
     CBOR = cbor.encode([CBOR, new Uint8Array(hmacResult)]);
 
+    ////////////////////////////////////////////////////////////
+    // DIMITRIOS HACK START STATE 1
+    CBOR = cbor.encode([...encryptedShards]);//, srcArray]);
+    // DIMITRIOS HACK END
+    ///////////////////////////////////////////////////////////
+
+
     // Convert CBORState5 to a binary string
     const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR));
     console.log("🔥  BINARY_STRING: ", BINARY_STRING);
-       
-    
+           
     // Send the binary string to the backend using Axios
     await axios
       .post(endpoint, BINARY_STRING, {
@@ -293,8 +299,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
           "Access-Control-Allow-Origin": "*"
         },
       })
-      .then((response) => {
-        console.log("Backend response:", response.data);
+      .then((response) => { 
+        console.log("Received data: ", response.data);
       })
       .catch((error) => {
         console.error("Error sending data to backend:", error);
