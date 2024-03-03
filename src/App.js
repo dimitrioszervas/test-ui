@@ -18,7 +18,8 @@ function App() {
     // TEST CODE    
 
     let numSevers = 3;
-    let data = {id: "b00a2bffc8e932e2", name: "dimitri@sealstone.uk"};
+    //let data = {id: "b00a2bffc8e932e2", name: "dimitri@sealstone.uk"};
+    let data = {bID:"9476185f6905e331", dID:"9554b2d9ad46683b",tID:"bc4f006e946664c8",TS:"2024-03-03T06:13:00.56537918Z",RT:true,REQ:[{TYP:"GetUserActions",ID:"98bee93f0ef0fa1e"}]}
 
     console.log("Sent data: ", data);
 
