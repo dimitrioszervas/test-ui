@@ -233,6 +233,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //console.log("Data Shard 2: ", dataShard2);
     //console.log("Parity Shard: ", parityShard);
     
+    // DIMITRIOS CHANGE to use Reed-Solomon shards 
     console.log("Total Number of shards: ", totalNShards);
     console.log("Number of Data shards: ", dataNShards);
     console.log("Number of Parity shards: ", parityNShards);
@@ -247,6 +248,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
         console.log("Parity Shard ", i - parityNShards, ": ", transactionShards[i]);
       }      
     }
+
+    // END DIMITRIOS Reed-Solomon
     
     // state 3 - end
 
@@ -268,8 +271,9 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
-      // Here we just adding unecrypted shards
-      const encryptedShard = transactionShards[i]; //await encryptShard(transactionShards[i], ENCRYPTS[i]);
+      // Here we just adding unecrypted shards DIMITRIOS CHANGE? (not sure)
+      //const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);     
+      const encryptedShard = transactionShards[i];
       encryptedShards.push(encryptedShard);
     }
 
@@ -277,7 +281,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     const srcArray = Array.from(new Uint8Array(SRC));
 
     // Create CBOR for state 4 by combining encrypted shards and SRC
-    CBOR = cbor.encode([...encryptedShards, srcArray]);
+    //CBOR = cbor.encode([...encryptedShards, srcArray]); // Original
+    CBOR = cbor.encode([...encryptedShards]); // DIMITRIOS CHANGE? (not sure)
     console.log("🔥 CBOR for State 4: ", CBOR);
 
     // state 4 - end
@@ -295,16 +300,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     const hmacResult = await calculateHMAC(CBOR, SIGNS[0]);
 
     // Create CBOR for State 5 by combining CBORState4 and the HMAC
-    CBOR = cbor.encode([CBOR, new Uint8Array(hmacResult)]);
-
-    ////////////////////////////////////////////////////////////
-    // DIMITRIOS HACK START
-    // Include in CBOR to be send only the Reed-Solomon shards
-    // to test that we are able to rebuild the data in the
-    // TESTAPiLayer
-    CBOR = cbor.encode([...encryptedShards]);
-    // DIMITRIOS HACK END
-    ///////////////////////////////////////////////////////////
+    CBOR = cbor.encode([new Uint8Array(CBOR), new Uint8Array(hmacResult)]);   
 
     // Convert CBORState5 to a binary string
     const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR));
