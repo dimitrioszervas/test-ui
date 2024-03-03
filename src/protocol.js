@@ -144,7 +144,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // REED-SOLOMON /////////////////////////////////////////////////////////////////////
     // Shard the data using Reed-Solomon
 
-    let finalCBORArray = new Uint8Array(CBOR);
+    let finalCBOR = CBOR; 
+    let finalCBORArray = new Uint8Array(finalCBOR);
 
     // calculates number of total Reed-Solomon shards depending on the number
     // of servers
@@ -161,7 +162,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // END REED-SOLOMON /////////////////////////////////////////////////////////////////
   
-    const n = totalNShards; // n is to set how many keys need to be drived
+    const n = totalNShards; // n is to set how many keys need to be derived
 
     // creating n encryption keys from ENCRYPT i.e ENCRYPTS
     const ENCRYPTS = await generateNKeys(n, SRC, "encrypt", ENCRYPT);
@@ -171,8 +172,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     const SIGNS = await generateNKeys(n, SRC, "sign", SIGN);
     console.log("🔥  SIGNS: ", SIGNS);
 
-    let NAME = cbor.encode(data.name); // converstion of data.name to cbor
-    console.log("🔥  NAME: ", NAME);
+    //let NAME = cbor.encode(data.name); // converstion of data.name to cbor
+    //console.log("🔥  NAME: ", NAME);
 
     // Encrypting the data.name i.e NAME with ENCRYPTS[0]
     //NAME = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: SRC }, ENCRYPTS[0], NAME);
@@ -210,6 +211,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // state 2 - end
 
     // state 3
+    console.log("🔥 CBOR for State 3: ", finalCBOR);
+
     // Assuming you have the finalCBOR from the previous step
     // Assuming finalCBOR is the ArrayBuffer containing the signed CBOR string
     //const finalCBORArray = Array.from(new Uint8Array(CBOR));
@@ -244,7 +247,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
         console.log("Parity Shard ", i - parityNShards, ": ", transactionShards[i]);
       }      
     }
-
+    
     // state 3 - end
 
     // state 4
@@ -275,7 +278,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // Create CBOR for state 4 by combining encrypted shards and SRC
     CBOR = cbor.encode([...encryptedShards, srcArray]);
-    console.log("CBOR for State 4: ", CBOR);
+    console.log("🔥 CBOR for State 4: ", CBOR);
 
     // state 4 - end
 
@@ -295,8 +298,11 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     CBOR = cbor.encode([CBOR, new Uint8Array(hmacResult)]);
 
     ////////////////////////////////////////////////////////////
-    // DIMITRIOS HACK START STATE 1
-    CBOR = cbor.encode([...encryptedShards]);//, srcArray]);
+    // DIMITRIOS HACK START
+    // Include in CBOR to be send only the Reed-Solomon shards
+    // to test that we are able to rebuild the data in the
+    // TESTAPiLayer
+    CBOR = cbor.encode([...encryptedShards]);
     // DIMITRIOS HACK END
     ///////////////////////////////////////////////////////////
 
