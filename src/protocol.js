@@ -148,13 +148,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     let totalNShards = calculateNShards(finalCBORArray.length, numSevers);
     let parityNShards = Math.trunc(totalNShards / 2);
     let dataNShards = totalNShards - parityNShards;
-    let numShardsPerServer = Math.trunc(totalNShards / numSevers);
-
-    console.log("Test Reed-Solomon");
-    console.log("totalNShards: ", totalNShards);
-    console.log("parityNShards: ", parityNShards);
-    console.log("dataNShards: ", dataNShards);
-    console.log("numShardsPerServer: ", + numShardsPerServer);    
+    let numShardsPerServer = Math.trunc(totalNShards / numSevers);  
 
     let transactionShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
 
@@ -229,6 +223,21 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //console.log("Data Shard 1: ", dataShard1);
     //console.log("Data Shard 2: ", dataShard2);
     //console.log("Parity Shard: ", parityShard);
+    
+    console.log("Test Reed-Solomon");
+    console.log("Total Number of shards: ", totalNShards);
+    console.log("Number of Data shards: ", dataNShards);
+    console.log("Number of Parity shards: ", parityNShards);
+    console.log("numShardsPerServer: ", + numShardsPerServer);  
+
+    for (let i = 0; i < transactionShards.length; i++) {
+      if (i < dataNShards) {
+        console.log("Data Shard ", i + 1, ": ", transactionShards[i]);
+      }
+      else {
+        console.log("Parity Shard ", i - parityNShards, ": ", transactionShards[i]);
+      }      
+    }
 
     // state 3 - end
 
