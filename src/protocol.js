@@ -142,6 +142,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     console.log("🔥  CBOR for State 1: ", CBOR);
 
     // REED-SOLOMON /////////////////////////////////////////////////////////////////////
+    // Shard the data using Reed-Solomon
 
     let finalCBORArray = new Uint8Array(CBOR);
 
@@ -171,7 +172,6 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //NAME = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: SRC }, ENCRYPTS[0], NAME);
     //console.log("🔥  Encrypted NAME: ", NAME);
     //data.name = NAME;
-
   
     // state 2
     const encoder = new TextEncoder();
@@ -224,12 +224,12 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //console.log("Data Shard 2: ", dataShard2);
     //console.log("Parity Shard: ", parityShard);
     
-    console.log("Test Reed-Solomon");
     console.log("Total Number of shards: ", totalNShards);
     console.log("Number of Data shards: ", dataNShards);
     console.log("Number of Parity shards: ", parityNShards);
     console.log("numShardsPerServer: ", + numShardsPerServer);  
 
+    // Prints out for debugging the shards 
     for (let i = 0; i < transactionShards.length; i++) {
       if (i < dataNShards) {
         console.log("Data Shard ", i + 1, ": ", transactionShards[i]);
@@ -254,15 +254,14 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //const encryptedShard1 = await encryptShard(dataShard1, ENCRYPTS[1]);
     //const encryptedShard2 = await encryptShard(dataShard2, ENCRYPTS[2]);
     //const encryptedParityShard = await encryptShard(parityShard, ENCRYPTS[3]);
-
+    
+    // Create an array of encrypted shards
+    //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
       const encryptedShard = transactionShards[i];//await encryptShard(transactionShards[i], ENCRYPTS[i]);
       encryptedShards.push(encryptedShard);
     }
-
-    // Create an array of encrypted shards
-    //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
 
     // Convert SRC to regular array
     const srcArray = Array.from(new Uint8Array(SRC));
@@ -293,7 +292,6 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     CBOR = cbor.encode([...encryptedShards]);//, srcArray]);
     // DIMITRIOS HACK END
     ///////////////////////////////////////////////////////////
-
 
     // Convert CBORState5 to a binary string
     const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR));
