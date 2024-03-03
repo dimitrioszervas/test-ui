@@ -146,11 +146,17 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     let finalCBORArray = new Uint8Array(CBOR);
 
+    // calculates number of total Reed-Solomon shards depending on the number
+    // of servers
     let totalNShards = calculateNShards(finalCBORArray.length, numSevers);
+    // calculate number of parity shards
     let parityNShards = Math.trunc(totalNShards / 2);
+    // calculate number of data shards
     let dataNShards = totalNShards - parityNShards;
+    // calculate number of shards per server
     let numShardsPerServer = Math.trunc(totalNShards / numSevers);  
 
+    // get the Reed-Solomon shards for the transaction
     let transactionShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
 
     // END REED-SOLOMON /////////////////////////////////////////////////////////////////
@@ -259,7 +265,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
-      const encryptedShard = transactionShards[i];//await encryptShard(transactionShards[i], ENCRYPTS[i]);
+      // here we just adding unecryted shards
+      const encryptedShard = transactionShards[i]; //await encryptShard(transactionShards[i], ENCRYPTS[i]);
       encryptedShards.push(encryptedShard);
     }
 
