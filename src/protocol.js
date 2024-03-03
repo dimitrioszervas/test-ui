@@ -268,7 +268,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
-      // here we just adding unecryted shards
+      // Here we just adding unecrypted shards
       const encryptedShard = transactionShards[i]; //await encryptShard(transactionShards[i], ENCRYPTS[i]);
       encryptedShards.push(encryptedShard);
     }
