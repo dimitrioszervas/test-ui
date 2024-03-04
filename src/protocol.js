@@ -278,11 +278,14 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     }
 
     // Convert SRC to regular array
-    const srcArray = Array.from(new Uint8Array(SRC));
+    //const srcArray = Array.from(new Uint8Array(SRC)); // original
+    
+    // DIMITRIOS CHANGE? (not sure) but it is easier to extract it from backend if is Uint8Array
+    // as the shards are also the same type a binary string
+    const srcArray = new Uint8Array(SRC); 
 
     // Create CBOR for state 4 by combining encrypted shards and SRC
-    //CBOR = cbor.encode([...encryptedShards, srcArray]); // Original
-    CBOR = cbor.encode([...encryptedShards]); // DIMITRIOS CHANGE? (not sure)
+    CBOR = cbor.encode([...encryptedShards, srcArray]);  
     console.log("🔥 CBOR for State 4: ", CBOR);
 
     // state 4 - end
