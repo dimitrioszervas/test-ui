@@ -271,9 +271,9 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
-      // Here we just adding unecrypted shards DIMITRIOS CHANGE? (not sure)
-      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);     
+      // Here we just adding unecrypted shards for testing DIMITRIOS CHANGE
       //const encryptedShard = transactionShards[i];
+      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]); // original (correct)           
       encryptedShards.push(encryptedShard);
     }
 
