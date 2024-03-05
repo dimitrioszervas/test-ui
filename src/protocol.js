@@ -259,7 +259,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     async function encryptShard(shard, cryptoKey) {
       const algo = { name: "AES-GCM", iv: SRC };
       const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, new Uint8Array(shard));
-      return new Uint8Array(ciphertext).buffer;
+      return new Uint8Array(ciphertext);
     }
 
     // Encrypt each shard with the corresponding CryptoKey
@@ -272,8 +272,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     let encryptedShards = [];
     for (let i = 0; i < transactionShards.length; i++) {
       // Here we just adding unecrypted shards DIMITRIOS CHANGE? (not sure)
-      //const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);     
-      const encryptedShard = transactionShards[i];
+      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]);     
+      //const encryptedShard = transactionShards[i];
       encryptedShards.push(encryptedShard);
     }
 
