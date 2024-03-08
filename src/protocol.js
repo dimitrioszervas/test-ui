@@ -141,9 +141,13 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // state 4
 
     // Function to encrypt a shard with a given CryptoKey
-    async function encryptShard(shard, cryptoKey) {
-      const algo = { name: "AES-GCM", iv: src, tagLength: 128 };
-      const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, new Uint8Array(shard));
+    async function encryptShard(shard, cryptoKey, srcIn) {
+      let iv = new Uint8Array(12);
+      for (let i = 0; i < srcIn.length; i++) {
+        iv[i] = srcIn[i].length;
+      }
+      const algo = { name: "AES-GCM", iv: iv, tagLength: 128 };
+      const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, shard);
       return new Uint8Array(ciphertext);
     }
 
@@ -158,7 +162,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     for (let i = 0; i < dataShards.length; i++) {
       // Here we just adding unecrypted shards for testing DIMITRIOS CHANGE
       //const encryptedShard = transactionShards[i];
-      const encryptedShard = await encryptShard(dataShards[i], encrypts[i+1]);//Math.trunc(i / numShardsPerServer)]); // original (correct)           
+      const encryptedShard = await encryptShard(dataShards[i], encrypts[i+1], src);//Math.trunc(i / numShardsPerServer)]); // original (correct)           
       encryptedShards.push(encryptedShard);
     }
 
