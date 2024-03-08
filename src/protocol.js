@@ -142,7 +142,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // Function to encrypt a shard with a given CryptoKey
     async function encryptShard(shard, cryptoKey) {
-      const algo = { name: "AES-GCM", iv: src };
+      const algo = { name: "AES-GCM", iv: src, tagLength: 128 };
       const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, new Uint8Array(shard));
       return new Uint8Array(ciphertext);
     }
