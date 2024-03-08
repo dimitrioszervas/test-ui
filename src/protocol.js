@@ -2,52 +2,7 @@ import axios from "axios";
 import cbor from "cbor-js";
 import { calculateNShards } from "./ReedSolomon";
 import { calculateReedSolomonShards } from "./ReedSolomon";
-import { calculateDataPadding } from "./ReedSolomon";
-import { StripPadding } from "./ReedSolomon";
-
-// fucntion to generate n keys (here 3 keys).
-const generateNKeys = async (n, SRC, type, baseKey) => {
-  try {
-    let derivedKeyAlgo, keyUsage, salt, info;
-    if (type === "sign") {
-      // if we want to create keys which will be used to sign the data
-      derivedKeyAlgo = { name: "HMAC", hash: "SHA-256" };
-      keyUsage = ["sign", "verify"];
-      salt = SRC; // salt needed to generate keys
-      info = new TextEncoder().encode("SIGNS" + n);
-    } else {
-      derivedKeyAlgo = { name: "AES-GCM", length: 256 };
-      keyUsage = ["encrypt", "decrypt"];
-      salt = SRC; // salt needed to generate keys
-      info = new TextEncoder().encode("ENCRYPTS" + n);
-    }
-    let keys = []; // array to store n keys
-
-    // for loop to generate n keys
-    for (let i = 0; i < n; i++) {
-      // here we are creating a key using HKDF algorithm
-      const key = await window.crypto.subtle.deriveKey(
-        {
-          name: "HKDF",
-          hash: "SHA-256",
-          salt: salt,
-          info: info,
-        },
-        baseKey,
-        derivedKeyAlgo,
-        true,
-        keyUsage
-      );
-      keys.push(key);
-    }
-    return keys;
-  } catch (error) {
-    console.error("Error in generateNKeys:", error.message);
-    throw error;
-  }
-};
-
-
+import { generateKeys } from "./KeyDerivation";
 
 
 /*
@@ -58,82 +13,20 @@ const generateNKeys = async (n, SRC, type, baseKey) => {
 export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, numSevers) => {
   try {
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let SECRET = await window.crypto.subtle.importKey("raw", new TextEncoder().encode("SECRET"), "HKDF", false, [
-      "deriveBits",
-      "deriveKey",
-    ]);
-    console.log("🔥  SECRET or baseKey: ", SECRET);
+    const n = numSevers;
+    let [encrypts, signs, src] = await generateKeys("secret", n);
 
-    // creating SRC from the SECRET
-    let SRC = await window.crypto.subtle.deriveBits(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: new TextEncoder().encode(null),
-        info: new TextEncoder().encode(null),
-      },
-      SECRET,
-      64
-    );
-    console.log("🔥  SRC: ", SRC);
+    console.log("encrypts: ");
+    for (let i=0; i < encrypts.length; i++) {
+      let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", encrypts[i]));
+      console.log("encrypt[", i, "]: ", raw);
+    }
 
-    // ENCRYPT from SECRET
-    let ENCRYPT = await window.crypto.subtle.deriveKey(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: SRC,
-        info: new TextEncoder().encode("ENCRYPT"),
-      },
-      SECRET,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt", "decrypt"]
-    );
-
-    ENCRYPT = await window.crypto.subtle.exportKey("raw", ENCRYPT);
-    ENCRYPT = await window.crypto.subtle.importKey(
-      "raw",
-      ENCRYPT,
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: SRC,
-        info: new TextEncoder().encode("ENCRYPT"),
-      },
-      false,
-      ["deriveKey"]
-    );
-    console.log("🔥  ENCRYPT: ", ENCRYPT);
-
-    // SIGN from SECRET
-    let SIGN = await window.crypto.subtle.deriveKey(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: SRC,
-        info: new TextEncoder().encode("SIGN"),
-      },
-      SECRET,
-      { name: "HMAC", hash: "SHA-256" },
-      true,
-      ["sign", "verify"]
-    );
-
-    SIGN = await window.crypto.subtle.exportKey("raw", SIGN);
-    SIGN = await window.crypto.subtle.importKey(
-      "raw",
-      SIGN,
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: SRC,
-        info: new TextEncoder().encode("SIGN"),
-      },
-      false,
-      ["deriveKey"]
-    );
-    console.log("🔥  SIGN: ", SIGN);
+    console.log("signs: ");
+    for (let i=0; i < signs.length; i++) {
+      let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", signs[i]));
+      console.log("sign[", i, "]: ", raw);
+    }
 
     // here data has data.name as encrypted field and other unencrypted fields
     // state 1
@@ -158,20 +51,12 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     let numShardsPerServer = Math.trunc(totalNShards / numSevers);  
 
     // get the Reed-Solomon shards for the transaction
-    let transactionShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
+    let dataShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
 
     // END REED-SOLOMON /////////////////////////////////////////////////////////////////
-  
-    const n = totalNShards; // n is to set how many keys need to be derived
-
+     
     // creating n encryption keys from ENCRYPT i.e ENCRYPTS
-    const ENCRYPTS = await generateNKeys(n, SRC, "encrypt", ENCRYPT);
-    console.log("🔥  ENCRYPTS: ", ENCRYPTS);
-
-    // creating n SIGNS from SIGN
-    const SIGNS = await generateNKeys(n, SRC, "sign", SIGN);
-    console.log("🔥  SIGNS: ", SIGNS);
-
+    
     //let NAME = cbor.encode(data.name); // converstion of data.name to cbor
     //console.log("🔥  NAME: ", NAME);
 
@@ -184,7 +69,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     const encoder = new TextEncoder();
 
     // Calculate HMAC for each key in SIGNS[1...n] and add the first 16 bytes to CBOR
-    const hmacPromises = SIGNS.slice(1, n).map(async (key) => {
+    const hmacPromises = signs.slice(1, n).map(async (key) => {
       const algo = { name: "HMAC", hash: "SHA-256" };
 
       const signature = await window.crypto.subtle.sign(algo, key, encoder.encode(CBOR));
@@ -240,12 +125,12 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     console.log("numShardsPerServer: ", + numShardsPerServer);  
 
     // Prints out for debugging the shards 
-    for (let i = 0; i < transactionShards.length; i++) {
+    for (let i = 0; i < dataShards.length; i++) {
       if (i < dataNShards) {
-        console.log("Data Shard ", i + 1, ": ", transactionShards[i]);
+        console.log("Data Shard ", i + 1, ": ", dataShards[i]);
       }
       else {
-        console.log("Parity Shard ", i - parityNShards, ": ", transactionShards[i]);
+        console.log("Parity Shard ", i - parityNShards, ": ", dataShards[i]);
       }      
     }
 
@@ -257,7 +142,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // Function to encrypt a shard with a given CryptoKey
     async function encryptShard(shard, cryptoKey) {
-      const algo = { name: "AES-GCM", iv: SRC };
+      const algo = { name: "AES-GCM", iv: src };
       const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, new Uint8Array(shard));
       return new Uint8Array(ciphertext);
     }
@@ -269,11 +154,11 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     
     // Create an array of encrypted shards
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
-    let encryptedShards = [];
-    for (let i = 0; i < transactionShards.length; i++) {
+    let encryptedShards = [];   
+    for (let i = 0; i < dataShards.length; i++) {
       // Here we just adding unecrypted shards for testing DIMITRIOS CHANGE
       //const encryptedShard = transactionShards[i];
-      const encryptedShard = await encryptShard(transactionShards[i], ENCRYPTS[i]); // original (correct)           
+      const encryptedShard = await encryptShard(dataShards[i], encrypts[i+1]);//Math.trunc(i / numShardsPerServer)]); // original (correct)           
       encryptedShards.push(encryptedShard);
     }
 
@@ -282,7 +167,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     
     // DIMITRIOS CHANGE? (not sure) but it is easier to extract it from backend if is Uint8Array
     // as the shards are also the same type a binary string
-    const srcArray = new Uint8Array(SRC); 
+    const srcArray = new Uint8Array(src); 
 
     // Create CBOR for state 4 by combining encrypted shards and SRC
     CBOR = cbor.encode([...encryptedShards, srcArray]);  
@@ -300,7 +185,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     }
 
     // Calculate HMAC using SIGNS[0] and CBOR for State 5
-    const hmacResult = await calculateHMAC(CBOR, SIGNS[0]);
+    const hmacResult = await calculateHMAC(CBOR, signs[0]);
 
     // Create CBOR for State 5 by combining CBORState4 and the HMAC
     CBOR = cbor.encode([new Uint8Array(CBOR), new Uint8Array(hmacResult)]);   
