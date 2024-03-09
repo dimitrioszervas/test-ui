@@ -2,8 +2,9 @@ import axios from "axios";
 import cbor from "cbor-js";
 import { calculateNShards } from "./ReedSolomon";
 import { calculateReedSolomonShards } from "./ReedSolomon";
-import { generateKeys } from "./KeyDerivation";
-
+import { generateKeys } from "./CryptoUtils";
+import { encryptShard } from "./CryptoUtils";
+import { calculateHMAC } from "./CryptoUtils";
 
 /*
   data should be like this javascript object: 
@@ -140,17 +141,6 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // state 4
 
-    // Function to encrypt a shard with a given CryptoKey
-    async function encryptShard(shard, cryptoKey, srcIn) {
-      let iv = new Uint8Array(12);
-      for (let i = 0; i < srcIn.length; i++) {
-        iv[i] = srcIn[i];
-      }
-      const algo = { name: "AES-GCM", iv: iv, tagLength: 128 };
-      const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, shard);
-      return new Uint8Array(ciphertext);
-    }
-
     // Encrypt each shard with the corresponding CryptoKey
     //const encryptedShard1 = await encryptShard(dataShard1, ENCRYPTS[1]);
     //const encryptedShard2 = await encryptShard(dataShard2, ENCRYPTS[2]);
@@ -159,10 +149,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // Create an array of encrypted shards
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];   
-    for (let i = 0; i < dataShards.length; i++) {
-      // Here we just adding unecrypted shards for testing DIMITRIOS CHANGE
-      //const encryptedShard = transactionShards[i];
-      const encryptedShard = await encryptShard(dataShards[i], encrypts[i+1], src);//Math.trunc(i / numShardsPerServer)]); // original (correct)           
+    for (let i = 0; i < dataShards.length; i++) {    
+      const encryptedShard = await encryptShard(dataShards[i], encrypts[Math.trunc(i / numShardsPerServer) + 1], src);           
       encryptedShards.push(encryptedShard);
     }
 
@@ -179,14 +167,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // state 4 - end
 
-    // state 5
-
-    // Function to calculate HMAC using a given CryptoKey
-    async function calculateHMAC(data, cryptoKey) {
-      const algo = { name: "HMAC", hash: "SHA-256" };
-      const signature = await crypto.subtle.sign(algo, cryptoKey, new Uint8Array(data));
-      return new Uint8Array(signature).buffer;
-    }
+    // state 5  
 
     // Calculate HMAC using SIGNS[0] and CBOR for State 5
     const hmacResult = await calculateHMAC(CBOR, signs[0]);
