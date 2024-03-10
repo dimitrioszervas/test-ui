@@ -65,11 +65,11 @@ const generateNKeys = async (n, salt, type, baseKey) => {
 };
 
 // Function to encrypt a shard with a given CryptoKey
-export async function encryptShard(shard, cryptoKey, srcIn) {
+export async function encryptShard(shard, cryptoKey, src) {
 
   let iv = new Uint8Array(12);
-  for (let i = 0; i < srcIn.length; i++) {
-    iv[i] = srcIn[i];
+  for (let i = 0; i < src.length; i++) {
+    iv[i] = src[i];
   }
 
   const algo = { name: "AES-GCM", iv: iv, tagLength: 128 };
