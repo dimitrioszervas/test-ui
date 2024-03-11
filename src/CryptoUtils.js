@@ -40,11 +40,19 @@ const deriveBitsHKDF = async (secretKey, salt, infoText, bits) => {
 // Function to generate n keys of a specific type (sign or encrypt)
 const generateNKeys = async (n, salt, type, baseKey) => {
   try {
-    const derivedKeyAlgo = type === "sign" ? 
-      { name: "HMAC", hash: "SHA-256", length: 256 } : 
-      { name: "AES-GCM", length: 256 };
-    const keyUsage = type === "sign" ? ["sign", "verify"] : ["encrypt", "decrypt"];
-    const info = encodeText(type === "sign" ? "signs" : "encrypts");
+
+    let derivedKeyAlgo, keyUsage, info;
+    if (type === "sign") {
+      // if we want to create keys which will be used to sign the data
+      derivedKeyAlgo = { name: "HMAC", hash: "SHA-256", length: 256 };
+      keyUsage = ["sign", "verify"];    
+      info = encodeText("signs");
+    } else {
+      derivedKeyAlgo = { name: "AES-GCM", length: 256 };
+      keyUsage = ["encrypt", "decrypt"];     
+      info = encodeText("encrypts");
+    }
+
     let keys = [];
 
     for (let i = 0; i <= n; i++) {
