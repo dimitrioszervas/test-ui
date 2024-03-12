@@ -176,7 +176,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     CBOR = cbor.encode([new Uint8Array(CBOR), new Uint8Array(hmacResult)]);   
 
     // Convert CBORState5 to a binary string
-    const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR));
+    //const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR)); // ORIGINAL
+    const BINARY_STRING = new Uint8Array(CBOR); // Dimitrios modification
     console.log("🔥  BINARY_STRING: ", BINARY_STRING);
            
     // Send the binary string to the backend using Axios
