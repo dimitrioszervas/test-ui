@@ -185,7 +185,7 @@ class Galois {
      * Multiplies to elements of the field.
      */
     static multiply(a, b) {
-        if (a == 0 || b == 0) {
+        if (a === 0 || b === 0) {
             return 0;
         }
         else {
@@ -200,10 +200,10 @@ class Galois {
      * Inverse of multiplication.
      */
     static divide(a, b) {
-        if (a == 0) {
+        if (a === 0) {
             return 0;
         }
-        if (b == 0) {
+        if (b === 0) {
             throw new Error("Argument 'divisor' is 0");
         }
         let logA = Galois.LOG_TABLE[a & 0xFF];
@@ -225,10 +225,10 @@ class Galois {
      * The result of multiplying a by itself n times.
      */
     static exp(a, n) {
-        if (n == 0) {
+        if (n === 0) {
             return 1;
         }
-        else if (a == 0) {
+        else if (a === 0) {
             return 0;
         }
         else {
@@ -252,7 +252,7 @@ class Galois {
         }
         let b = 1;
         for (let log = 0; log < Galois.FIELD_SIZE - 1; log++) {
-            if (result[b] != -1) {
+            if (result[b] !== -1) {
                 throw new Error("BUG: duplicate logarithm (bad polynomial?)");
             }
             result[b] = log;
@@ -408,7 +408,7 @@ class Matrix {
      * matrix (the one on the right).
      */
     times(right) {
-        if (this.getColumns() != right.getRows()) {
+        if (this.getColumns() !== right.getRows()) {
             throw new Error(
                     "Columns on left (" + this.getColumns() +") " +
                     "is different than rows on right (" + right.getRows() + ")");
@@ -430,7 +430,7 @@ class Matrix {
      * Returns the concatenation of this matrix and the matrix on the right.
      */
     augment(right) {
-        if (this.rows != right.rows) {
+        if (this.rows !== right.rows) {
             throw new Error("Matrices don't have the same number of rows");
         }
         let result = new Matrix(this.rows, this.columns + right.columns);
@@ -493,7 +493,7 @@ class Matrix {
      */
     invert() {
         // Sanity check.
-        if (this.rows != this.columns) {
+        if (this.rows !== this.columns) {
             throw new Error("Only square matrices can be inverted");
         }
 
@@ -521,9 +521,9 @@ class Matrix {
         for (let r = 0; r < this.rows; r++) {
             // If the element on the diagonal is 0, find a row below
             // that has a non-zero and swap them.
-            if (this.data[r][r] == 0) {
+            if (this.data[r][r] === 0) {
                 for (let rowBelow = r + 1; rowBelow < this.rows; rowBelow++) {
-                    if (this.data[rowBelow][r] != 0) {
+                    if (this.data[rowBelow][r] !== 0) {
                         this.swapRows(r, rowBelow);
                         break;
                     }
@@ -534,7 +534,7 @@ class Matrix {
                 throw new Error("Matrix is singular");
             }
             // Scale to 1.
-            if (this.data[r][r] != 1) {
+            if (this.data[r][r] !== 1) {
                 let scale = Galois.divide(1, this.data[r][r]);
                 for (let c = 0; c < this.columns; c++) {
                     this.data[r][c] = Galois.multiply(this.data[r][c], scale);
@@ -544,7 +544,7 @@ class Matrix {
             // a multiple of it.  (Subtraction and addition are
             // both exclusive or in the Galois field.)
             for (let rowBelow = r + 1; rowBelow < this.rows; rowBelow++) {
-                if (this.data[rowBelow][r] != 0) {
+                if (this.data[rowBelow][r] !== 0) {
                     let scale = this.data[rowBelow][r];
                     for (let c = 0; c < this.columns; c++) {
                         this.data[rowBelow][c] ^= Galois.multiply(scale, this.data[r][c]);
@@ -556,7 +556,7 @@ class Matrix {
         // Now clear the part above the main diagonal.
         for (let d = 0; d < this.rows; d++) {
             for (let rowAbove = 0; rowAbove < d; rowAbove++) {
-                if (this.data[rowAbove][d] != 0) {
+                if (this.data[rowAbove][d] !== 0) {
                     let scale = this.data[rowAbove][d];
                     for (let c = 0; c < this.columns; c++) {
                         this.data[rowAbove][c] ^= Galois.multiply(scale, this.data[d][c]);
@@ -705,7 +705,7 @@ export class ReedSolomon {
                 numberPresent += 1;
             }
         }
-        if (numberPresent == this.totalShardCount) {
+        if (numberPresent === this.totalShardCount) {
             // Cool.  All of the shards data data.  We don't
             // need to do anything.
             return;
@@ -787,14 +787,14 @@ export class ReedSolomon {
     checkBuffersAndSizes(shards, offset, byteCount) {
         // The number of buffers should be equal to the number of
         // data shards plus the number of parity shards.
-        if (shards.length != this.totalShardCount) {
+        if (shards.length !== this.totalShardCount) {
             throw new Error("wrong number of shards: " + shards.length);
         }
 
         // All of the shard buffers should be the same length.
         let shardLength = shards[0].length;
         for (let i = 1; i < shards.length; i++) {
-            if (shards[i].length != shardLength) {
+            if (shards[i].length !== shardLength) {
                 throw new Error("Shards are different sizes");
             }
         }
@@ -913,7 +913,7 @@ export class ReedSolomon {
                 for (let c = 0; c < this.dataShardCount; c++) {
                     value ^= Galois.multiply(matrixRow[c], inputs[c][iByte]);
                 }
-                if (toCheck[iRow][iByte] != value) {
+                if (toCheck[iRow][iByte] !== value) {
                     return false;
                 }
             }
@@ -1022,7 +1022,7 @@ export class ReceivedShards {
     
     setShard(shardNo, shard, shardLengthIn, numTotalShardsIn, numDataShardsIn, numParityShardsIn) {
         
-        if ((this.shards == null) || (this.shardLength != shardLengthIn) || (this.numTotalShards != numTotalShardsIn)) {
+        if ((this.shards === null) || (this.shardLength !== shardLengthIn) || (this.numTotalShards !== numTotalShardsIn)) {
 
             this.numReceivedShards = 0;
             
@@ -1042,7 +1042,7 @@ export class ReceivedShards {
        
         if (!this.shardPresent[shardNo]) {
 
-            if (shard.length == this.shards[shardNo].length) {
+            if (shard.length === this.shards[shardNo].length) {
                
                 this.shards[shardNo] = new Uint8Array(shardLengthIn);
 
@@ -1095,60 +1095,63 @@ export class ReceivedShards {
     }
 }
 
-  // Helper functions
+// Helper functions
 
-  // Calculate padding for data
-  export function calculateDataPadding(dataSize, numShards)
-  {
-      if (dataSize < numShards)
-      {
-          return numShards;
-      }
-      let rem = dataSize % numShards;
-      if (rem != 0)
-      {
-          let newSize = numShards * Math.trunc((dataSize / numShards) + 0.9);
-          if (newSize < dataSize)
-          {
-              newSize += numShards;
-          }
-          return dataSize + (newSize - dataSize);
-      }
-      else
-      {
-          return dataSize;
-      }
-  }
+// Calculate padding for data
+export function calculateDataPadding(dataSize, numShards)
+{
+    if (dataSize < numShards)
+    {
+        return numShards;
+    }
+    let rem = dataSize % numShards;
+    if (rem !== 0)
+    {
+        let newSize = numShards * Math.trunc((dataSize / numShards) + 0.9);
+        if (newSize < dataSize)
+        {
+            newSize += numShards;
+        }
+        return dataSize + (newSize - dataSize);
+    }
+    else
+    {
+        return dataSize;
+    }
+}
 
-  // calculate number of shards
-  export function calculateNShards(dataSize, nServers)
-  {
+// calculate number of shards
+export function calculateNShards(dataSize, nServers)
+{
 
-      let nShards = (1 + Math.trunc(dataSize / 256)) * nServers;
+    let nShards = (1 + Math.trunc(dataSize / 256)) * nServers;
 
-      if (nShards > 255)
-      {
-          nShards = 255;
-      }
+    if (nShards > 255)
+    {
+        nShards = 255;
+    }
 
-      return nShards;
-  }
+    return nShards;
+}
 
-  // calculate Reed-Solomon shards a 2D array named dataShards
-  export function calculateReedSolomonShards(
-      dataBytes,
-      totalNShards,
-      parityNShards,
-      dataNShards)
-  {
+// calculate Reed-Solomon shards a 2D array named dataShards
+export function calculateReedSolomonShards(dataBytes, numServers)
+{
+    // calculates number of total Reed-Solomon shards depending on the number
+    // of servers
+    let totalNShards = calculateNShards(dataBytes.length, numServers);
+    // calculate number of parity shards
+    let parityNShards = Math.trunc(totalNShards / 2);
+    // calculate number of data shards
+    let dataNShards = totalNShards - parityNShards;
 
+    // calculate number of shards per server
     let paddedDataSize = calculateDataPadding(dataBytes.length + 1, dataNShards);
 
     let dataShardLength = Math.trunc(paddedDataSize / dataNShards);
 
     let dataShards = [];
-    for (let i = 0; i < totalNShards; i++)
-    {
+    for (let i = 0; i < totalNShards; i++) {
         dataShards[i] = new Uint8Array(dataShardLength);
     }
 
@@ -1177,31 +1180,31 @@ export class ReceivedShards {
     reedSolomon.encodeParity(dataShards, 0, dataShardLength);
 
     return dataShards;
-  }
+}
 
-  export function StripPadding(paddedData)
-  {  
-      let padding = 1;
-      for (let i = paddedData.length - 1; i >= 0; i--)
-      {
-          if (paddedData[i] === 0)
-          {
-              padding++;
-          }
-          else
-          {
-              break;
-          }
-      }
+export function StripPadding(paddedData)
+{  
+    let padding = 1;
+    for (let i = paddedData.length - 1; i >= 0; i--)
+    {
+        if (paddedData[i] === 0)
+        {
+            padding++;
+        }
+        else
+        {
+            break;
+        }
+    }
 
-      let strippedData = new Uint8Array(paddedData.length - padding); 
-     
-      for (let i = 0; i < strippedData.length; i++) {
-        strippedData[i] = paddedData[i];
-      }
+    let strippedData = new Uint8Array(paddedData.length - padding); 
+    
+    for (let i = 0; i < strippedData.length; i++) {
+    strippedData[i] = paddedData[i];
+    }
 
-      return strippedData;    
-  }
+    return strippedData;    
+}
 
 
 

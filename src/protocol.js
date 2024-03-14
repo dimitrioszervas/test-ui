@@ -14,15 +14,17 @@ import { calculateHMAC } from "./CryptoUtils";
 export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, numSevers) => {
   try {
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
+    // creating n encryption keys from ENCRYPT i.e ENCRYPTS
+    
     const n = numSevers;
     let [encrypts, signs, src] = await generateKeys("secret", n);
-
+    
     console.log("encrypts: ");
     for (let i=0; i < encrypts.length; i++) {
       let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", encrypts[i]));
       console.log("encrypt[", i, "]: ", raw);
     }
-
+    
     console.log("signs: ");
     for (let i=0; i < signs.length; i++) {
       let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", signs[i]));
@@ -34,37 +36,17 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     let CBOR = data;
     CBOR = cbor.encode(CBOR);
     console.log("🔥  CBOR for State 1: ", CBOR);
-
-    // REED-SOLOMON /////////////////////////////////////////////////////////////////////
-    // Shard the data using Reed-Solomon
+   
+    // Shard the TRANSACTION data using Reed-Solomon /////////////////////////////////////////////////
 
     let finalCBOR = CBOR; 
-    let finalCBORArray = new Uint8Array(finalCBOR);
-
-    // calculates number of total Reed-Solomon shards depending on the number
-    // of servers
-    let totalNShards = calculateNShards(finalCBORArray.length, numSevers);
-    // calculate number of parity shards
-    let parityNShards = Math.trunc(totalNShards / 2);
-    // calculate number of data shards
-    let dataNShards = totalNShards - parityNShards;
-    // calculate number of shards per server
-    let numShardsPerServer = Math.trunc(totalNShards / numSevers);  
-
-    // get the Reed-Solomon shards for the transaction
-    let dataShards = calculateReedSolomonShards(finalCBORArray, totalNShards, parityNShards, dataNShards);
-
-    // END REED-SOLOMON /////////////////////////////////////////////////////////////////
-     
-    // creating n encryption keys from ENCRYPT i.e ENCRYPTS
+    let finalCBORArray = new Uint8Array(finalCBOR);   
     
-    //let NAME = cbor.encode(data.name); // converstion of data.name to cbor
-    //console.log("🔥  NAME: ", NAME);
+    // get the Reed-Solomon shards for the transaction
+    let transactionShards = calculateReedSolomonShards(finalCBORArray, numSevers);
+    let numTransShardsPerServer = Math.trunc(transactionShards.length / numSevers);  
 
-    // Encrypting the data.name i.e NAME with ENCRYPTS[0]
-    //NAME = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: SRC }, ENCRYPTS[0], NAME);
-    //console.log("🔥  Encrypted NAME: ", NAME);
-    //data.name = NAME;
+    // END TRANSACTION REED-SOLOMON ///////////////////////////////////////////////////////////////// 
   
     // state 2
     const encoder = new TextEncoder();
@@ -100,42 +82,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     console.log("🔥 CBOR for State 3: ", finalCBOR);
 
     // Assuming you have the finalCBOR from the previous step
-    // Assuming finalCBOR is the ArrayBuffer containing the signed CBOR string
-    //const finalCBORArray = Array.from(new Uint8Array(CBOR));
-
-    // Split the final CBOR array into two data shards
-    //const shard1 = finalCBORArray.slice(0, finalCBORArray.length / 2);
-    //const shard2 = finalCBORArray.slice(finalCBORArray.length / 2);
-
-    // Calculate the parity shard by XORing the two data shards
-    //let parityShard = shard1.map((byte, index) => byte ^ shard2[index]);
-
-    // Convert data shards and parity shard back to ArrayBuffer
-    //const dataShard1 = new Uint8Array(shard1).buffer;
-    //const dataShard2 = new Uint8Array(shard2).buffer;
-    //parityShard = new Uint8Array(parityShard).buffer;
-    
-    //console.log("Data Shard 1: ", dataShard1);
-    //console.log("Data Shard 2: ", dataShard2);
-    //console.log("Parity Shard: ", parityShard);
-    
-    // DIMITRIOS CHANGE to use Reed-Solomon shards 
-    console.log("Total Number of shards: ", totalNShards);
-    console.log("Number of Data shards: ", dataNShards);
-    console.log("Number of Parity shards: ", parityNShards);
-    console.log("numShardsPerServer: ", + numShardsPerServer);  
-
-    // Prints out for debugging the shards 
-    for (let i = 0; i < dataShards.length; i++) {
-      if (i < dataNShards) {
-        console.log("Data Shard ", i + 1, ": ", dataShards[i]);
-      }
-      else {
-        console.log("Parity Shard ", i - parityNShards, ": ", dataShards[i]);
-      }      
-    }
-
-    // END DIMITRIOS Reed-Solomon
+    // Assuming finalCBOR is the ArrayBuffer containing the signed CBOR string 
     
     // state 3 - end
 
@@ -149,8 +96,8 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // Create an array of encrypted shards
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];   
-    for (let i = 0; i < dataShards.length; i++) {    
-      const encryptedShard = await encryptShard(dataShards[i], encrypts[Math.trunc(i / numShardsPerServer) + 1], src);           
+    for (let i = 0; i < transactionShards.length; i++) {    
+      const encryptedShard = await encryptShard(transactionShards[i], encrypts[Math.trunc(i / numTransShardsPerServer) + 1], src);           
       encryptedShards.push(encryptedShard);
     }
 
