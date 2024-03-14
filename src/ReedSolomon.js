@@ -1155,7 +1155,7 @@ export function calculateReedSolomonShards(dataBytes, numServers)
         dataShards[i] = new Uint8Array(dataShardLength);
     }
 
-    let paddedDataBytes = [];
+    let paddedDataBytes = new Uint8Array(dataBytes.length + 1);
     for (let i = 0; i < dataBytes.length; i++) {
         paddedDataBytes[i] = dataBytes[i];
     }
@@ -1206,7 +1206,9 @@ export function StripPadding(paddedData)
     return strippedData;    
 }
 
-
+export function calculateNumberOfShardsPerServer(shards, numServers) {
+    return Math.trunc(shards.length / numServers); 
+}
 
 
 
