@@ -17,19 +17,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // creating n encryption keys from ENCRYPT i.e ENCRYPTS
     
     const n = numSevers;
-    let [encrypts, signs, src] = await generateKeys("secret", n);
-    
-    console.log("encrypts: ");
-    for (let i=0; i < encrypts.length; i++) {
-      let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", encrypts[i]));
-      console.log("encrypt[", i, "]: ", raw);
-    }
-    
-    console.log("signs: ");
-    for (let i=0; i < signs.length; i++) {
-      let raw = new Uint8Array(await window.crypto.subtle.exportKey("raw", signs[i]));
-      console.log("sign[", i, "]: ", raw);
-    }
+    let [encrypts, signs, src] = await generateKeys("secret", n);  
 
     // here data has data.name as encrypted field and other unencrypted fields
     // state 1
