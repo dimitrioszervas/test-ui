@@ -76,11 +76,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
 
     // state 4
 
-    // Encrypt each shard with the corresponding CryptoKey
-    //const encryptedShard1 = await encryptShard(dataShard1, ENCRYPTS[1]);
-    //const encryptedShard2 = await encryptShard(dataShard2, ENCRYPTS[2]);
-    //const encryptedParityShard = await encryptShard(parityShard, ENCRYPTS[3]);
-    
+    // Encrypt each shard with the corresponding CryptoKey 
     // Create an array of encrypted shards
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
     let encryptedShards = [];   
