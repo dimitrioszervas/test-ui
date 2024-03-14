@@ -22,8 +22,7 @@ function App() {
 
     console.log("encNodeKey", encNodeKey);
 
-    let numSevers = 3;
-   
+    let numSevers = 3;   
     let data = {bID:"9476185f6905e331", 
                 dID:"9554b2d9ad46683b",
                 tID:"bc4f006e946664c8",
