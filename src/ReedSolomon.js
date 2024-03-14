@@ -530,7 +530,7 @@ class Matrix {
                 }
             }
             // If we couldn't find one, the matrix is singular.
-            if (this.data[r][r] == 0) {
+            if (this.data[r][r] === 0) {
                 throw new Error("Matrix is singular");
             }
             // Scale to 1.

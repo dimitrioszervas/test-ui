@@ -44,11 +44,11 @@ function App() {
                         encNAM: "HxFhcnlK5RGp9NXyiHkwAaa0PkkN24dCTnr7175z1IQ="
                       }
                   ]
-                }
+                };
 
     console.log("Sent data: ", data);
 
-    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", data, numSevers);
+    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, data);
   
   }
 

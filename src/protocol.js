@@ -11,20 +11,43 @@ import { calculateHMAC } from "./CryptoUtils";
   data = { id: string, name: string}
 */
 
-export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, numSevers) => {
+export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, numSevers, data) => {
   try {
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
     // creating n encryption keys from ENCRYPT i.e ENCRYPTS
     
     const n = numSevers;
-    let [encrypts, signs, src] = await generateKeys("secret", n);  
+    let [encrypts, signs, src] = await generateKeys("secret", n);
 
-    // here data has data.name as encrypted field and other unencrypted fields
+    // Convert SRC to regular array
+    const srcArray = Array.from(new Uint8Array(src));
+    
+    // Shard the Encrypted Node Key using Reed-Solomon ///////////////////////////////////////////////
+    
+    // get the Reed-Solomon shards for the transaction     
+    let nodeKeyShards = calculateReedSolomonShards(data.REQ[0].encKEY, numSevers);
+    let numNodeKeyShardsPerServer = Math.trunc(nodeKeyShards.length / numSevers); 
+    
+    // Encrypt each shard with the corresponding CryptoKey 
+    // Create an array of encrypted shards  
+    let encryptedNodeKeyShards = [];   
+    for (let i = 0; i < nodeKeyShards.length; i++) {    
+      const encryptedNodeKeyShard = await encryptShard(nodeKeyShards[i], encrypts[Math.trunc(i / numNodeKeyShardsPerServer) + 1], src);           
+      encryptedNodeKeyShards.push(encryptedNodeKeyShard);
+    }
+
+    let thresholdCBOR = cbor.encode([...encryptedNodeKeyShards, srcArray]);
+    
+    data.REQ[0].encKEY = new Uint8Array(thresholdCBOR);
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+        
+    // here data has Node KEY
     // state 1
     let CBOR = data;
     CBOR = cbor.encode(CBOR);
     console.log("🔥  CBOR for State 1: ", CBOR);
-   
+
     // Shard the TRANSACTION data using Reed-Solomon /////////////////////////////////////////////////
 
     let finalCBOR = CBOR; 
@@ -79,21 +102,14 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, data, 
     // Encrypt each shard with the corresponding CryptoKey 
     // Create an array of encrypted shards
     //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
-    let encryptedShards = [];   
+    let encryptedTransanctionShards = [];   
     for (let i = 0; i < transactionShards.length; i++) {    
-      const encryptedShard = await encryptShard(transactionShards[i], encrypts[Math.trunc(i / numTransShardsPerServer) + 1], src);           
-      encryptedShards.push(encryptedShard);
+      const encryptedTransactionShard = await encryptShard(transactionShards[i], encrypts[Math.trunc(i / numTransShardsPerServer) + 1], src);           
+      encryptedTransanctionShards.push(encryptedTransactionShard);
     }
-
-    // Convert SRC to regular array
-    //const srcArray = Array.from(new Uint8Array(SRC)); // original
     
-    // DIMITRIOS CHANGE? (not sure) but it is easier to extract it from backend if is Uint8Array
-    // as the shards are also the same type a binary string
-    const srcArray = new Uint8Array(src); 
-
     // Create CBOR for state 4 by combining encrypted shards and SRC
-    CBOR = cbor.encode([...encryptedShards, srcArray]);  
+    CBOR = cbor.encode([...encryptedTransanctionShards, srcArray]);  
     console.log("🔥 CBOR for State 4: ", CBOR);
 
     // state 4 - end
