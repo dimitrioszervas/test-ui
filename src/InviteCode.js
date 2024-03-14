@@ -28,57 +28,104 @@ export async function derivePreSecret(code) {
   return preSecret;
 }
 
-async function sendCodeToDevice(code) {
-  console.log(`Sending code to user's device: ${code}`);
-}
-
-// Function to encrypt SECRET using PRESECRET
-async function encryptSecret(secret, preSecret) {
-  const iv = window.crypto.getRandomValues(new Uint8Array(12)); // Initialization vector
-  const preSecretKey = await window.crypto.subtle.importKey(
+// Additional function to perform HKDF derivation
+async function hkdfDerive(preSecret, info, length = 256) {
+  const salt = new Uint8Array(32); 
+  let keyMaterialInput = preSecret;
+  if (typeof preSecret === 'string') {
+    const encoder = new TextEncoder();
+    keyMaterialInput = encoder.encode(preSecret);
+  }
+  const hkdfParams = {
+    name: "HKDF",
+    hash: "SHA-256",
+    salt: salt,
+    info: new TextEncoder().encode(info),
+  };
+  const keyMaterial = await window.crypto.subtle.importKey(
     "raw",
-    preSecret,
-    "AES-GCM",
+    keyMaterialInput,
+    { name: "HKDF" },
     false,
-    ["encrypt"]
+    ["deriveKey", "deriveBits"]
   );
-  const encryptedSecret = await window.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    preSecretKey,
-    secret
+  return window.crypto.subtle.deriveBits(
+    { ...hkdfParams, length },
+    keyMaterial,
+    length
   );
-  return { encryptedSecret, iv };
 }
 
-// Function to decrypt SECRET using PRESECRET
-async function decryptSecret(encryptedSecret, preSecret, iv) {
-  const preSecretKey = await window.crypto.subtle.importKey(
-    "raw",
-    preSecret,
-    "AES-GCM",
-    false,
-    ["decrypt"]
-  );
-  const decryptedSecret = await window.crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    preSecretKey,
-    encryptedSecret
-  );
-  return decryptedSecret;
-}
-
-// Simulate connecting using PRESECRET to get encrypted SECRET
-async function connectUsingPreSecret(preSecret) {
-  const { SECRET } = generateSecretAndCode();
-  const secretBytes = new TextEncoder().encode(SECRET);
-  const { encryptedSecret, iv } = await encryptSecret(secretBytes, preSecret);
-  return { encryptedSecret, iv };
+// Use PRESECRET to derive SRC on USER INVITE
+async function deriveSrc(preSecret) {
+  return hkdfDerive(preSecret, "SRC");
 }
 
 export async function sendInviteWithCodeAndRetrieveSecret(deviceId) {
   const { SECRET, CODE } = generateSecretAndCode();
   const preSecret = await derivePreSecret(CODE);
   console.log("PreSecret derived for further operations:", preSecret);
+
+  // Derive SRC using PRESECRET as the unique device identifier
+  const src = await deriveSrc(preSecret);
+  console.log("SRC derived for user invite:", src);
+
+  // Derive SIGN and ENCRYPT keys using SECRET and PRESECRET
+  const signKey = await hkdfDerive(SECRET, "SIGN", 256); // Derive from SECRET for higher security
+  const encryptKey = await hkdfDerive(preSecret, "ENCRYPT", 256); // Derive from PRESECRET
+  console.log("SIGN key derived:", signKey);
+  console.log("ENCRYPT key derived:", encryptKey);
+
+   // Mock function to simulate connecting using PRESECRET to get encrypted SECRET
+async function connectUsingPreSecret(preSecret) {
+  // For demonstration, we're just creating a mock encrypted secret and iv
+  const mockSecret = "MockSecret";
+  const encoder = new TextEncoder();
+  
+  // Import preSecret as a CryptoKey for AES-GCM
+  const key = await window.crypto.subtle.importKey(
+    "raw",
+    preSecret, // preSecret is an ArrayBuffer
+    { name: "AES-GCM" },
+    false, // whether the key is extractable (i.e., can be used in exportKey)
+    ["encrypt"] // can only be used for these operations
+  );
+
+  const iv = window.crypto.getRandomValues(new Uint8Array(12)); // Initialization vector
+  const encryptedSecret = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    key, // Use the imported CryptoKey
+    encoder.encode(mockSecret)
+  );
+
+  return { encryptedSecret, iv };
+}
+
+
+  // Function to decrypt SECRET using PRESECRET
+  async function decryptSecret(encryptedSecret, preSecret, iv) {
+    // Import preSecret as a CryptoKey for AES-GCM decryption
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      preSecret, // preSecret is an ArrayBuffer
+      { name: "AES-GCM" },
+      false, // whether the key is extractable (i.e., can be used in exportKey)
+      ["decrypt"] // can only be used for these operations
+    );
+
+    const decryptedSecret = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key, 
+      encryptedSecret
+    );
+
+    return decryptedSecret; // This will be an ArrayBuffer
+  }
+
+  // Mock function to simulate sending the CODE to the user's device
+  async function sendCodeToDevice(CODE) {
+    console.log(`Simulating sending CODE: ${CODE} to device`);
+  }
 
   // Simulate connecting using PRESECRET to get encrypted SECRET
   const { encryptedSecret, iv } = await connectUsingPreSecret(preSecret);
@@ -92,5 +139,5 @@ export async function sendInviteWithCodeAndRetrieveSecret(deviceId) {
   // Send the CODE to the user's device
   await sendCodeToDevice(CODE);
 
-  return { SECRET: decryptedSecret, CODE, preSecret };
+  return { SECRET: decryptedSecret, CODE, preSecret, SRC: src, SIGN: signKey, ENCRYPT: encryptKey };
 }
