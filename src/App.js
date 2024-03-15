@@ -45,7 +45,8 @@ function App() {
 
     console.log("Sent data: ", transanction);
 
-    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, transanction);
+    let secret = "secret";
+    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, secret, transanction);
   
   }
 
