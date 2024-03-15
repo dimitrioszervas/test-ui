@@ -16,14 +16,18 @@ function App() {
   async function handleClick() {
   
     ////////////////////////////////////////////////////////////////////////////
-    // TEST CODE    
-
+    // TEST CODE
+    // test encrypted node key
     let encNodeKey = new Uint8Array(base64ToByteArray("U5PwRpgCmk/30vkWA9QsX02\u002B8thW00qGBr16fLkdu\u002B7l5\u002B5O/RodIQ=="));
 
     console.log("encNodeKey", encNodeKey);
 
+    // We have 3 servers 
     let numSevers = 3;   
-    let data = {bID:"9476185f6905e331", 
+
+    // A transaction that creates a folder - this for testing purposes not a real one in order to 
+    // test the threshold for the new protocol
+    let transanction = {bID:"9476185f6905e331", 
                 dID:"9554b2d9ad46683b",
                 tID:"bc4f006e946664c8",
                 TS:"2024-03-03T06:13:00.56537918Z",
@@ -39,9 +43,9 @@ function App() {
                   ]
                 };
 
-    console.log("Sent data: ", data);
+    console.log("Sent data: ", transanction);
 
-    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, data);
+    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, transanction);
   
   }
 

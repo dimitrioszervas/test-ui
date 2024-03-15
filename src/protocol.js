@@ -101,8 +101,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, numSev
     // state 4
 
     // Encrypt each shard with the corresponding CryptoKey 
-    // Create an array of encrypted shards
-    //const encryptedShards = [encryptedShard1, encryptedShard2, encryptedParityShard];
+    // Create an array of encrypted shards   
     let encryptedTransanctionShards = [];   
     for (let i = 0; i < transactionShards.length; i++) {    
       const encryptedTransactionShard = await encryptShard(transactionShards[i], encrypts[Math.trunc(i / numTransShardsPerServer) + 1], src);           
