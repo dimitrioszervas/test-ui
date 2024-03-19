@@ -72,8 +72,8 @@ function App() {
       REQ:[
             {
               TYP: "InviteUser",
-              ENCRYPTS: ENCRYPTS,
-              SIGNS: SIGNS, 
+              OWN_ENCRYPTS: ENCRYPTS,
+              OWN_SIGNS: SIGNS, 
               encKEY: new Uint8Array(encNodeKey)            
             }
           ]
