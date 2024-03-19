@@ -1,5 +1,7 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import { generateKeys } from "./CryptoUtils";
+import { exportKey as exportCryptoKeyToRaw } from "./CryptoUtils";
+
 import './App.css';
 
 function base64ToByteArray(base64) {
@@ -25,10 +27,12 @@ function App() {
     
     // A transaction that creates a folder - this for testing purposes not a real one in order to 
     // test the threshold for the new protocol
-    let transanction = {bID:"9476185f6905e331", 
-    dID:"9554b2d9ad46683b",
-    tID:"bc4f006e946664c8",
-    TS:"2024-03-03T06:13:00.56537918Z",
+    /*
+    let transanction = {
+                bID:"9476185f6905e331", 
+                dID:"9554b2d9ad46683b",
+                tID:"bc4f006e946664c8",
+                TS:"2024-03-03T06:13:00.56537918Z",
                 RT:true,
                 REQ:[
                       {
@@ -40,8 +44,9 @@ function App() {
                       }
                     ]
                   };
-                  
-                  console.log("Sent data: ", transanction);
+        
+    */
+
                   
     const ownerCode = "1234";
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
@@ -50,7 +55,33 @@ function App() {
     const numServers = 3;
     const [encrypts, signs, src] = await generateKeys(ownerCode, numServers);
 
-    await encryptDataAndSendtoServer(encrypts, signs, src, "https://localhost:7125/api/Transactions/PostTransaction", numServers, transanction);
+    // Convet encrypts & signs CryptoKeys to raw binary
+    let ENCRYPTS = [];
+    let SIGNS = [];
+    for (let i = 0; i <= numServers; i++) {
+      ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(encrypts[i])));
+      SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));
+    }
+
+    let inviteTransanction = {
+      bID:"9476185f6905e331", 
+      dID:"9554b2d9ad46683b",
+      tID:"bc4f006e946664c8",
+      TS:"2024-03-03T06:13:00.56537918Z",
+      RT:true,
+      REQ:[
+            {
+              TYP: "InviteUser",
+              ENCRYPTS: ENCRYPTS,
+              SIGNS: SIGNS, 
+              encKEY: new Uint8Array(encNodeKey)            
+            }
+          ]
+        };  
+                   
+    console.log("Sent Data: ", inviteTransanction);
+
+    await encryptDataAndSendtoServer(encrypts, signs, src, "https://localhost:7125/api/Transactions/PostTransaction", numServers, inviteTransanction);
   
   }
 

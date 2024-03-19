@@ -92,6 +92,11 @@ export async function calculateHMAC(data, cryptoKey) {
   return new Uint8Array(signature).buffer;
 }
   
+export async function exportKey(key) {
+  const exportableKey = await window.crypto.subtle.exportKey("raw", key);
+  return exportableKey;
+}
+
 export const generateKeys = async(secretText, n) => {
   try {
     const secretString = secretText;
