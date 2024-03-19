@@ -81,7 +81,8 @@ function App() {
                    
     console.log("Sent Data: ", inviteTransanction);
 
-    await encryptDataAndSendtoServer(encrypts, signs, src, "https://localhost:7125/api/Transactions/PostTransaction", numServers, inviteTransanction);
+    const INVITE_USER_URL = "https://localhost:7125/api/Transactions/InviteUser";
+    await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_USER_URL, numServers, inviteTransanction);
   
   }
 
