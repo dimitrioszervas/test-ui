@@ -47,6 +47,9 @@ function App() {
         
     */
 
+    const INVITE_URL = "https://localhost:7125/api/Transactions/Invite";
+    const REGISTER_URL = "https://localhost:7125/api/Transactions/Register";
+    const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";   
                   
     const ownerCode = "1234";
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
@@ -54,7 +57,7 @@ function App() {
     // We have 3 servers 
     const numServers = 3;
     const [encrypts, signs, src] = await generateKeys(ownerCode, numServers);
-
+    
     // Convet encrypts & signs CryptoKeys to raw binary
     let ENCRYPTS = [];
     let SIGNS = [];
@@ -81,8 +84,8 @@ function App() {
                    
     console.log("Sent Data: ", inviteTransanction);
 
-    const INVITE_USER_URL = "https://localhost:7125/api/Transactions/InviteUser";
-    await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_USER_URL, numServers, inviteTransanction);
+
+    await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_URL, numServers, inviteTransanction);
   
   }
 
