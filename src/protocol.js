@@ -3,7 +3,6 @@ import cbor from "cbor-js";
 
 import { calculateReedSolomonShards } from "./ReedSolomon";
 import { calculateNumberOfShardsPerServer } from "./ReedSolomon";
-import { generateKeys } from "./CryptoUtils";
 import { encryptShard } from "./CryptoUtils";
 import { calculateHMAC } from "./CryptoUtils";
 
@@ -12,13 +11,8 @@ import { calculateHMAC } from "./CryptoUtils";
   data = { id: string, name: string}
 */
 
-export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, numSevers, secret, transanctionData) => {
+export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint, numSevers, transanctionData) => {
   try {
-    // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
-    const n = numSevers;
-    let [encrypts, signs, src] = await generateKeys(secret, n);
-
     // Convert SRC to regular array
     const srcArray = Array.from(new Uint8Array(src));
     
@@ -64,7 +58,7 @@ export const encryptDataAndSendtoServer = async (ctx, src, req, endpoint, numSev
     const encoder = new TextEncoder();
 
     // Calculate HMAC for each key in SIGNS[1...n] and add the first 16 bytes to CBOR
-    const hmacPromises = signs.slice(1, n).map(async (key) => {
+    const hmacPromises = signs.slice(1, numSevers).map(async (key) => {
       const algo = { name: "HMAC", hash: "SHA-256" };
 
       const signature = await window.crypto.subtle.sign(algo, key, encoder.encode(CBOR));
