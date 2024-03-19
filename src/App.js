@@ -45,8 +45,8 @@ function App() {
 
     console.log("Sent data: ", transanction);
 
-    let secret = "secret";
-    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, secret, transanction);
+    const ownerCode = "1234";
+    await encryptDataAndSendtoServer("","","", "https://localhost:7125/api/Transactions/PostTransaction", numSevers, ownerCode, transanction);
   
   }
 
