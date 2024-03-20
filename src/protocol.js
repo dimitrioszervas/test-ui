@@ -122,6 +122,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     //console.log("🔥  BINARY_STRING: ", BINARY_STRING);           
    
     // Send the binary string to the backend using Axios
+    let responseData;
     await axios
       .post(endpoint, BINARY_STRING, {
         headers: {
@@ -130,17 +131,27 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
           "Access-Control-Allow-Origin": "*"
         },
       })
-      .then((response) => { 
-        console.log("Received data: ", response.data);
-        return response.data;
+      .then((response) => {         
+        responseData = response.data;       
       })
       .catch((error) => {
         console.error("Error sending data to backend:", error);
       });
     
-     /*
+      console.log("Received data: ", responseData);
+
+      //const blob = new Blob([responseData], {
+      //  type: "application/octet-stream",
+      //});
+     
+      //const dataAB = await blob.arrayBuffer();
+      //console.log("ArrayBuffer: ", dataAB);
+
+      return responseData;//new Uint8Array(dataAB);
+    
+      /*
      // Assuming you're using fetch API for making requests
-    fetch(endpoint, {
+      fetch(endpoint, {
       method: "POST", // *GET, POST, PUT, DELETE, etc.
       mode: "cors", // no-cors, *cors, same-origin
       cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached

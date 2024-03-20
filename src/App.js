@@ -1,6 +1,7 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import { generateKeys } from "./CryptoUtils";
 import { exportKey as exportCryptoKeyToRaw } from "./CryptoUtils";
+import cbor from "cbor-js";
 
 import './App.css';
 
@@ -82,8 +83,13 @@ function App() {
     
     console.log("Sent Data: ", inviteTransanction);
 
-    await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_URL, numServers, inviteTransanction);
-  
+    let response = await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_URL, numServers, inviteTransanction);
+    console.log("Response byte array: ", response); 
+    
+    let bytes = base64ToByteArray(response);
+    let ab = bytes.buffer; 
+    let CBOR = cbor.decode(ab); 
+    console.log(CBOR);    
   }
 
   return (
