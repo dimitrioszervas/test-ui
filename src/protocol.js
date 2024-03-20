@@ -132,6 +132,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
       })
       .then((response) => { 
         console.log("Received data: ", response.data);
+        return response.data;
       })
       .catch((error) => {
         console.error("Error sending data to backend:", error);
