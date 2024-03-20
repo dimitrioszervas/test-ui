@@ -22,9 +22,6 @@ function App() {
     // test encrypted node key
     let encNodeKey = new Uint8Array(base64ToByteArray("U5PwRpgCmk/30vkWA9QsX02\u002B8thW00qGBr16fLkdu\u002B7l5\u002B5O/RodIQ=="));
 
-    console.log("encNodeKey", encNodeKey);
-
-    
     // A transaction that creates a folder - this for testing purposes not a real one in order to 
     // test the threshold for the new protocol
     /*
@@ -81,9 +78,9 @@ function App() {
             }
           ]
         };  
-                   
+           
+    
     console.log("Sent Data: ", inviteTransanction);
-
 
     await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_URL, numServers, inviteTransanction);
   

@@ -21,7 +21,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     // get the Reed-Solomon shards for the transaction     
     let nodeKeyShards = calculateReedSolomonShards(new Uint8Array(transanctionData.REQ[0].encKEY), numSevers);
     let numNodeKeyShardsPerServer = calculateNumberOfShardsPerServer(nodeKeyShards, numSevers); 
-    console.log("transanctionData.REQ[0].encKEY: ", new Uint8Array(transanctionData.REQ[0].encKEY));
+    //console.log("transanctionData.REQ[0].encKEY: ", new Uint8Array(transanctionData.REQ[0].encKEY));
     
     // Encrypt each shard with the corresponding CryptoKey 
     // Create an array of encrypted shards  
@@ -119,8 +119,8 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     // Convert CBORState5 to a binary string
     //const BINARY_STRING = String.fromCharCode.apply(null, new Uint8Array(CBOR)); // ORIGINAL
     const BINARY_STRING = new Uint8Array(CBOR); // Dimitrios modification
-    console.log("🔥  BINARY_STRING: ", BINARY_STRING);
-           
+    //console.log("🔥  BINARY_STRING: ", BINARY_STRING);           
+   
     // Send the binary string to the backend using Axios
     await axios
       .post(endpoint, BINARY_STRING, {
@@ -131,14 +131,55 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
         },
       })
       .then((response) => { 
-        console.log("Received data: ", response.data);
+        console.log("Received data: ", response.data.a);
         return response.data;
       })
       .catch((error) => {
         console.error("Error sending data to backend:", error);
       });
+    
+     /*
+     // Assuming you're using fetch API for making requests
+    fetch(endpoint, {
+      method: "POST", // *GET, POST, PUT, DELETE, etc.
+      mode: "cors", // no-cors, *cors, same-origin
+      cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+      credentials: "same-origin", // include, *same-origin, omit
+      headers: {
+        "Content-Type": "application/octet-stream",
+        // 'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      redirect: "follow", // manual, *follow, error
+      referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+      body: BINARY_STRING, // body data type must match "Content-Type" header
+    })
+    .then(response => {
+      // Check if response is successful
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      // Check if response content type is octet-stream
+      if (response.headers.get('content-type') === 'application/octet-stream') {
+        // Read the response as array buffer
+        //return response.arrayBuffer();
+      } else {
+        throw new Error('Response is not of type application/octet-stream');
+      }
+    })
+    .then(arrayBuffer => {
+      // Handle the binary data
+      // For example, you can convert it to Blob, Uint8Array, etc.
+      // Example:
+      let uint8Array = new Uint8Array(arrayBuffer);
+      console.log(uint8Array);
+    })
+    .catch(error => {
+      console.error('There was a problem with the fetch operation:', error);
+    });
+
+    */
   } catch (error) {
     console.error("Error in encryptDataAndSendtoServer:", error.message);
-  }
+  } 
   
 };
