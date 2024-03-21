@@ -20,7 +20,7 @@ const invite = async() => {
   // Derive Owner id, encrypts & signs keys using the Onwer Code 
   const numServers = 3;
   let ownerID = await deriveID(ownerCode);
-  const [ownECRYPTS, ownSIGNS, SRC] = await deriveKeys(ownerCode, numServers);
+  const [ownENCRYPTS, ownSIGNS, SRC] = await deriveKeys(ownerCode, numServers);
 
   // Derive invite id, encrypts & signs keys using the Invite Code  
   let inviteID = await deriveID(inviteCode);
@@ -34,6 +34,7 @@ const invite = async() => {
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(invSIGNS[i])));      
   }
 
+  // Compose transactions
   let inviteTransanction = {   
     ENCRYPTS,
     SIGNS,
@@ -41,8 +42,9 @@ const invite = async() => {
   };
 
   console.log("Sent Data: ", inviteTransanction);
-
-  let response = await encryptDataAndSendtoServer(ownECRYPTS, ownSIGNS, SRC, INVITE_URL, numServers, inviteTransanction);
+  
+  // Send tranaction to server
+  let response = await encryptDataAndSendtoServer(ownENCRYPTS, ownSIGNS, SRC, INVITE_URL, numServers, inviteTransanction);
   console.log("Response: ", response);
     
   console.log(response.OWN_ENCRYPTS);
