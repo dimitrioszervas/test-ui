@@ -24,13 +24,13 @@ const invite = async() => {
   let inviteCode = "5678"; 
    
   // derive SECRET + KEYS using the Invite code
-  const [invCENCRYPTS, invSIGNS, DEVICE] = await deriveKeys(inviteCode, numServers);
+  const [invENCRYPTS, invSIGNS, DEVICE] = await deriveKeys(inviteCode, numServers);
   
   // Convert encrypts & signs CryptoKeys to raw binary
   let ENCRYPTS = [];
   let SIGNS = [];
   for (let i = 0; i <= numServers; i++) {
-    ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(invCENCRYPTS[i])));     
+    ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(invENCRYPTS[i])));     
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(invSIGNS[i])));      
   }
 
