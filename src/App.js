@@ -44,8 +44,6 @@ const invite = async() => {
     deviceID  
   };
 
-  console.log("Sent Data: ", inviteTransanction);
-
   // Send tranaction to server
   let response = await encryptDataAndSendtoServer(ownENCRYPTS, ownSIGNS, SRC, INVITE_URL, numServers, inviteTransanction);
   console.log("Response: ", response);
