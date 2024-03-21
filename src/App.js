@@ -17,10 +17,12 @@ const invite = async() => {
 
   // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
   // We have 3 servers 
+  // Derive Owner id, encrypts & signs keys using the Onwer Code 
   const numServers = 3;
   let ownerID = await deriveID(ownerCode);
   const [ownECRYPTS, ownSIGNS, SRC] = await deriveKeys(ownerCode, numServers);
 
+  // Derive invite id, encrypts & signs keys using the Invite Code  
   let inviteID = await deriveID(inviteCode);
   const [invCENCRYPTS, invSIGNS, ] = await deriveKeys(inviteCode, numServers);
   
