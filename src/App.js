@@ -1,5 +1,5 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, deriveID } from "./CryptoUtils";
+import { deriveKeys } from "./CryptoUtils";
 import { exportKey as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
