@@ -97,9 +97,9 @@ export async function exportKey(key) {
   return exportableKey;
 }
 
-export const generateKeys = async(secretText, n) => {
+export const deriveKeys = async(ownerCode, n) => {
   try {
-    const secretString = secretText;
+    const secretString = ownerCode;
     let saltString  = "";
 
     console.log("secret string: ", secretString); 
