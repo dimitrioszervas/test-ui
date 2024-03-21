@@ -4,7 +4,7 @@ import { deriveKeys, signAndEncryptData, sendInvite } from "../utils/invite";
 // This function is adjusted to directly use the imported utilities
 async function createAndSendInvite(serverUrl) {
   // Hardcoded owner and invite codes
-  const ownerCode = "1234"; // Default owner code
+  const ownerCode = "1234"; // Default owner cod
   const inviteCode = "INVITE123"; 
 
   try {
@@ -12,10 +12,11 @@ async function createAndSendInvite(serverUrl) {
     const { signKey, encryptKey } = await deriveKeys(ownerCode);
 
     // Step 2: Sign and encrypt the invite code
-    const signedAndEncryptedData = await signAndEncryptData(inviteCode, signKey, encryptKey);
-
+    const signedAndEncryptedData = await signAndEncryptData({inviteid, invitesignKeys, inviteencryptKeys}, 
+     ownersignKeys, ownerencryptKeys);
+     
     // Step 3: Send the encrypted and signed invite code to the server
-    const response = await sendInvite(signedAndEncryptedData, serverUrl);
+    const response = await sendInvite(signedAndEncryptedData, serverUrl);// send invite sing instead of invite code at server
 
     console.log("Invite sent successfully:", response);
   } catch (error) {
