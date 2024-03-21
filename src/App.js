@@ -24,7 +24,7 @@ const invite = async() => {
   let inviteCode = "5678"; 
    
   // derive SECRET + KEYS using the Invite code
-  const [invENCRYPTS, invSIGNS, DEVICE] = await deriveKeys(inviteCode, numServers);
+  const [invENCRYPTS, invSIGNS, deviceID] = await deriveKeys(inviteCode, numServers);
   
   // Convert encrypts & signs CryptoKeys to raw binary
   let ENCRYPTS = [];
@@ -38,7 +38,7 @@ const invite = async() => {
   let inviteTransanction = {   
     ENCRYPTS,
     SIGNS,
-    DEVICE 
+    deviceID 
   };
 
   // Send transaction to server
