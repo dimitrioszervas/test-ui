@@ -20,20 +20,22 @@ function base64ToAarrayBuffer(base64) {
   return bytes.buffer;
 }
 
-export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint, numSevers, transanctionData) => {
+export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint, numSevers, transanctionData) => {
   try {
     // Convert SRC to regular array
-    const srcArray = Array.from(new Uint8Array(src));
-    
-    // Shard the Encrypted Node Key using Reed-Solomon ///////////////////////////////////////////////
-    
-    // get the Reed-Solomon shards for the transaction     
+    const srcArray = Array.from(new Uint8Array(SRC));
+        
+    // Shard the Encrypted Node Key using Reed-Solomon THRESHOLD ///////////////////////////////////////////
+    /*
+    // get the Reed-Solomon shards for the Threshold     
     let nodeKeyShards = calculateReedSolomonShards(new Uint8Array(transanctionData.REQ[0].encKEY), numSevers);
     let numNodeKeyShardsPerServer = calculateNumberOfShardsPerServer(nodeKeyShards, numSevers); 
     //console.log("transanctionData.REQ[0].encKEY: ", new Uint8Array(transanctionData.REQ[0].encKEY));
     
     // Encrypt each shard with the corresponding CryptoKey 
-    // Create an array of encrypted shards  
+    // Create an array of encrypted shards
+    // Threshold  
+  
     let encryptedNodeKeyShards = [];   
     for (let i = 0; i < nodeKeyShards.length; i++) {    
       const encryptedNodeKeyShard = await encryptShard(nodeKeyShards[i], encrypts[Math.trunc(i / numNodeKeyShardsPerServer) + 1], src);           
@@ -43,7 +45,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     let thresholdCBOR = cbor.encode([...encryptedNodeKeyShards, srcArray]);
     
     transanctionData.REQ[0].encKEY = new Uint8Array(thresholdCBOR);
-
+    */
     //////////////////////////////////////////////////////////////////////////////////////////////////
         
     // here data has Node KEY
@@ -67,7 +69,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     const encoder = new TextEncoder();
 
     // Calculate HMAC for each key in SIGNS[1...n] and add the first 16 bytes to CBOR
-    const hmacPromises = signs.slice(1, numSevers).map(async (key) => {
+    const hmacPromises = SIGNS.slice(1, numSevers).map(async (key) => {
       const algo = { name: "HMAC", hash: "SHA-256" };
 
       const signature = await window.crypto.subtle.sign(algo, key, encoder.encode(CBOR));
@@ -107,7 +109,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     // Create an array of encrypted shards   
     let encryptedTransanctionShards = [];   
     for (let i = 0; i < transactionShards.length; i++) {    
-      const encryptedTransactionShard = await encryptShard(transactionShards[i], encrypts[Math.trunc(i / numTransShardsPerServer) + 1], src);           
+      const encryptedTransactionShard = await encryptShard(transactionShards[i], ENCRYPTS[Math.trunc(i / numTransShardsPerServer) + 1], SRC);           
       encryptedTransanctionShards.push(encryptedTransactionShard);
     }
     
@@ -120,7 +122,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     // state 5  
 
     // Calculate HMAC using SIGNS[0] and CBOR for State 5
-    const hmacResult = await calculateHMAC(CBOR, signs[0]);
+    const hmacResult = await calculateHMAC(CBOR, SIGNS[0]);
 
     // Create CBOR for State 5 by combining CBORState4 and the HMAC
     CBOR = cbor.encode([new Uint8Array(CBOR), new Uint8Array(hmacResult)]);   

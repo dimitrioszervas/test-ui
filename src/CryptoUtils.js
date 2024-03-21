@@ -2,7 +2,7 @@
 const encodeText = (text) => new TextEncoder().encode(text);
 
 // Function to import a secret key for HKDF
-const importSecretKey = async (secret) => {
+const importKey = async (secret) => {
   return window.crypto.subtle.importKey(
     'raw',
     secret,
@@ -36,6 +36,12 @@ const deriveBitsHKDF = async (secretKey, salt, infoText, bits) => {
     bits
   );
 };
+
+export const deriveID = async (code)=> {
+  let key = await importKey(encodeText(code)); 
+  const ab = await deriveBitsHKDF(key, encodeText(""), "id", 64);
+  return new Uint8Array(ab);
+}
 
 // Function to generate n keys of a specific type (sign or encrypt)
 const generateNKeys = async (n, salt, type, baseKey) => {
@@ -109,7 +115,7 @@ export const deriveKeys = async(ownerCode, n) => {
     console.log("secret: ", secretString);
 
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let secret = await importSecretKey(encodeText(secretString));
+    let secret = await importKey(encodeText(secretString));
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
