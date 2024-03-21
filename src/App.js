@@ -16,15 +16,14 @@ const invite = async() => {
   
   // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
   // We have 3 servers 
-  // Derive Owner id, encrypts & signs keys using the Onwer Code
-  
+  // Derive encrypts & signs keys using the Onwer Code  
   const numServers = 3; 
   const [ownENCRYPTS, ownSIGNS, SRC] = await deriveKeys(ownerCode, numServers);
   
   // get CODE for DEVICE
   let inviteCode = "5678"; 
    
-  // derive SECRET + KEYS 
+  // derive SECRET + KEYS using the Invite code
   const [invCENCRYPTS, invSIGNS, DEVICE] = await deriveKeys(inviteCode, numServers);
   
   // Convert encrypts & signs CryptoKeys to raw binary
@@ -39,7 +38,7 @@ const invite = async() => {
   let inviteTransanction = {   
     ENCRYPTS,
     SIGNS,
-    DEVICE  
+    DEVICE 
   };
 
   // Send transaction to server
