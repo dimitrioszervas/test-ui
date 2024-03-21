@@ -11,6 +11,15 @@ import { calculateHMAC } from "./CryptoUtils";
   data = { id: string, name: string}
 */
 
+function base64ToAarrayBuffer(base64) {
+  var binaryString = atob(base64);
+  var bytes = new Uint8Array(binaryString.length);
+  for (var i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint, numSevers, transanctionData) => {
   try {
     // Convert SRC to regular array
@@ -122,14 +131,18 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
     //console.log("🔥  BINARY_STRING: ", BINARY_STRING);           
    
     // Send the binary string to the backend using Axios
-    let responseData;
+    let responseData;   
     await axios
       .post(endpoint, BINARY_STRING, {
         headers: {
           "Content-Type": "application/octet-stream",
           'Access-Control-Allow-Credentials':true,
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "*",
+          "Accept" : "application/octet-stream",                   
         },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        //responseType: 'blob'
       })
       .then((response) => {         
         responseData = response.data;       
@@ -137,20 +150,14 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
       .catch((error) => {
         console.error("Error sending data to backend:", error);
       });
-    
-      console.log("Received data: ", responseData);
+           
+      CBOR = cbor.decode(base64ToAarrayBuffer(responseData)); 
+      console.log(CBOR);   
 
-      //const blob = new Blob([responseData], {
-      //  type: "application/octet-stream",
-      //});
-     
-      //const dataAB = await blob.arrayBuffer();
-      //console.log("ArrayBuffer: ", dataAB);
-
-      return responseData;//new Uint8Array(dataAB);
+      return CBOR;
     
       /*
-     // Assuming you're using fetch API for making requests
+      // Assuming you're using fetch API for making requests
       fetch(endpoint, {
       method: "POST", // *GET, POST, PUT, DELETE, etc.
       mode: "cors", // no-cors, *cors, same-origin
@@ -158,7 +165,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
       credentials: "same-origin", // include, *same-origin, omit
       headers: {
         "Content-Type": "application/octet-stream",
-        // 'Content-Type': 'application/x-www-form-urlencoded',
+        "Accept" : "application/octet-stream"        
       },
       redirect: "follow", // manual, *follow, error
       referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
@@ -173,7 +180,9 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
       if (response.headers.get('content-type') === 'application/octet-stream') {
         // Read the response as array buffer
         //return response.arrayBuffer();
+        responseData = response.arrayBuffer();
       } else {
+        console.log(response.headers.get('content-type'));
         throw new Error('Response is not of type application/octet-stream');
       }
     })
@@ -188,6 +197,7 @@ export const encryptDataAndSendtoServer = async (encrypts, signs, src, endpoint,
       console.error('There was a problem with the fetch operation:', error);
     });
 
+    return responseData;
     */
   } catch (error) {
     console.error("Error in encryptDataAndSendtoServer:", error.message);

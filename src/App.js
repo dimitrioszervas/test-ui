@@ -84,12 +84,8 @@ function App() {
     console.log("Sent Data: ", inviteTransanction);
 
     let response = await encryptDataAndSendtoServer(encrypts, signs, src, INVITE_URL, numServers, inviteTransanction);
-    console.log("Response byte array: ", response); 
-    
-    let bytes = base64ToByteArray(response);
-    let ab = bytes.buffer; 
-    let CBOR = cbor.decode(ab); 
-    console.log(CBOR);    
+    console.log("Response: ", response); 
+  
   }
 
   return (
