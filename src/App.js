@@ -10,7 +10,7 @@ const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";
 
 const OWNER_CODE = "1234";
 
-const encNodeKey = new Uint8Array(base64ToByteArray("U5PwRpgCmk/30vkWA9QsX02\u002B8thW00qGBr16fLkdu\u002B7l5\u002B5O/RodIQ=="));
+const DUMMY_ENC_NODE_KEY = new Uint8Array(base64ToByteArray("U5PwRpgCmk/30vkWA9QsX02\u002B8thW00qGBr16fLkdu\u002B7l5\u002B5O/RodIQ=="));
 
 function base64ToByteArray(base64) {
   var binaryString = atob(base64);
@@ -50,7 +50,7 @@ const invite = async() => {
             TYP: "Invite",
             OWN_ENCRYPTS: ENCRYPTS,
             OWN_SIGNS: SIGNS, 
-            encKEY: new Uint8Array(encNodeKey)            
+            encKEY: DUMMY_ENC_NODE_KEY            
           }
         ]
   };
@@ -83,11 +83,11 @@ const register = async() => {
     REQ:[
           {
             TYP: "Register",
-            DS_PUB: null,
-            DE_PUB: null, 
-            wTOKEN: null,
-            NONCE: null,
-            encKEY: new Uint8Array(encNodeKey)            
+            DS_PUB: new Uint8Array(32),
+            DE_PUB: new Uint8Array(32), 
+            wTOKEN: new Uint8Array(32),
+            NONCE: new Uint8Array(32),
+            encKEY: DUMMY_ENC_NODE_KEY            
           }
         ]
   };
@@ -111,12 +111,12 @@ const login = async() => {
   // Convert encrypts & signs CryptoKeys to raw binary
   let ENCRYPTS = [];
   let SIGNS = [];
-  /*
+ 
   for (let i = 0; i <= numServers; i++) {
     ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(encrypts[i])));     
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));      
   }
-  */
+ 
 
   let loginTransanction = {
     bID:"9476185f6905e331", 
@@ -127,12 +127,12 @@ const login = async() => {
     REQ:[
           {
             TYP: "Login",
-            DS_PUB: null,
-            DE_PUB: null,           
-            NONCE: null,
+            DS_PUB: new Uint8Array(32),
+            DE_PUB: new Uint8Array(32),           
+            NONCE: new Uint8Array(32),
             wENCRYPTS: ENCRYPTS,
             wSIGNS: SIGNS,
-            encKEY: new Uint8Array(encNodeKey)            
+            encKEY: DUMMY_ENC_NODE_KEY            
           }
         ]
   };
@@ -152,14 +152,15 @@ function App() {
   }
 
   return (
-    <div onClick={handleClick} style={{
-      textAlign: 'center',
-      width: '100px',
-      border: '1px solid gray',
-      borderRadius: '5px'
-    }}>
-      Invite
-    </div>
+    <div className="App">
+    <header className="App-header"> 
+      <button onClick={invite}>Invite</button>
+      <button onClick={register}>Register</button>
+      <button onClick={login}>Register</button>
+    </header>
+  </div>
+
+    
   );
 }
 
