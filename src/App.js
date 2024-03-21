@@ -1,7 +1,6 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import { generateKeys } from "./CryptoUtils";
 import { exportKey as exportCryptoKeyToRaw } from "./CryptoUtils";
-import cbor from "cbor-js";
 
 import './App.css';
 
