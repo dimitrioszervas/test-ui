@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
 import './App.css';
-import { createAndSendInvite } from './components/invitefront';
+import { generateOwn, generateInvite } from './utils/InviteUtils';
 
 function App() {
   const [ownerCode, setOwnerCode] = useState('');
-  const [inviteCode, setInviteCode] = useState('INVITE123'); // Assuming a default or a separate input for invite code
+  const [inviteCode, setInviteCode] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
 
-  const handleSendInvite = async () => {
-    const serverUrl = "https://example.com/invite";
-
+  const handleGenerateAndShareInvite = async () => {
+    setStatusMessage('Generating keys and invite...');
     try {
-      // Send the invite, passing the owner code and invite code
-      const response = await createAndSendInvite(serverUrl, ownerCode, inviteCode);
-      alert("Invite sent successfully!");
-      console.log("Server response:", response);
+
+      const ownerDetails = await generateOwn(ownerCode);
+      console.log("Generated owner details:", ownerDetails);
+
+      // Generate invite details
+      const inviteDetails = await generateInvite(inviteCode || 'INVITE123'); // Use a default invite code if none is provided
+      console.log("Generated invite details:", inviteDetails);
+
+      setStatusMessage(`Invite generated successfully! Invite Code: ${inviteDetails.id}`);
+      
+      console.log(`Sharing invite code: ${inviteDetails.id}`);
+      alert(`Shared invite code: ${inviteDetails.id}`);
     } catch (error) {
-      console.error("Failed to send invite:", error);
-      alert("Failed to send invite. Check the console for more details.");
+      console.error("Failed to generate or share invite:", error);
+      setStatusMessage("Failed to generate or share invite. Check the console for more details.");
     }
   };
 
@@ -33,13 +41,13 @@ function App() {
           type="text"
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
-          placeholder="Enter Invite Code"
+          placeholder="Enter Invite Code (optional)"
         />
-        <button onClick={handleSendInvite}>Send Invite</button>
+        <button onClick={handleGenerateAndShareInvite}>Generate and Share Invite</button>
+        <p>{statusMessage}</p>
       </header>
     </div>
   );
 }
 
 export default App;
-
