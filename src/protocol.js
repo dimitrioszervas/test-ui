@@ -23,7 +23,7 @@ function base64ToAarrayBuffer(base64) {
 export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint, numSevers, transanctionData) => {
   try {
     // Convert SRC to regular array
-    const srcArray = Array.from(new Uint8Array(SRC));
+    const srcArray = new Uint8Array(SRC);//Array.from(new Uint8Array(SRC));
         
     // Shard the Encrypted Node Key using Reed-Solomon THRESHOLD ///////////////////////////////////////////
     /*

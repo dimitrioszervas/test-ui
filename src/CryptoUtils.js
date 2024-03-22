@@ -148,3 +148,65 @@ export const deriveKeys = async(ownerCode, n) => {
     throw error;
   }
 }
+
+export async function deriveKWSharedKey(privateKey, publicKey) {
+ 
+  const sharedKey = await window.crypto.subtle.deriveKey(
+    {
+      name: "ECDH",
+      public: publicKey,
+    },
+    privateKey,
+    {
+      name: "AES-KW",
+      length: 256,
+    },
+    true,
+    ["wrapKey", "unwrapKey"]
+  );
+  return sharedKey;
+}
+
+export async function generateAESKWKey() {
+  let key = await window.crypto.subtle.generateKey(
+    {
+      name: "AES-KW",
+      length: 256,
+    },
+    false, //whether the key is extractable (i.e. can be used in exportKey)
+    ["wrapKey", "unwrapKey"]
+  );
+
+  return key;
+}
+
+export async function deriveKeyPBKDF2(password) { 
+  const enc = new TextEncoder();
+  return window.crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    "PBKDF2",
+    false,
+    ["wrapKey", "unwrapKey"],
+  );
+}
+
+export async function wrapKeyWithKeyKW(
+  keyToBeWrapped,
+  wrappingKey
+) {
+  try {
+    const wrappedKey = await window.crypto.subtle.wrapKey(
+      "raw",
+      keyToBeWrapped,
+      wrappingKey,
+      {
+        name: "AES-KW",
+      }
+    );
+    return wrappedKey;
+  } catch (e) {
+    console.error("wrapKeyWithKWKey error: ", e);
+    throw e; // Re-throw the error for handling at a higher level, if needed
+  }
+}
