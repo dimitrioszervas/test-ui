@@ -98,7 +98,7 @@ export async function calculateHMAC(data, cryptoKey) {
   return new Uint8Array(signature).buffer;
 }
   
-export async function exportKey(key) {
+export async function exportCryptoKeyToAB(key) {
   const exportableKey = await window.crypto.subtle.exportKey("raw", key);
   return exportableKey;
 }
@@ -173,40 +173,78 @@ export async function generateAESKWKey() {
       name: "AES-KW",
       length: 256,
     },
-    false, //whether the key is extractable (i.e. can be used in exportKey)
+    true, //whether the key is extractable (i.e. can be used in exportKey)
     ["wrapKey", "unwrapKey"]
   );
 
   return key;
 }
 
-export async function deriveKeyPBKDF2(password) { 
+async function importPBKDF2Key(text) {  
   const enc = new TextEncoder();
   return window.crypto.subtle.importKey(
     "raw",
-    enc.encode(password),
-    "PBKDF2",
+    enc.encode(text),
+    { name: "PBKDF2" },
     false,
+    ["deriveBits", "deriveKey"],
+  );
+}
+
+export async function deriveKeyPBKDF2(text) {
+  const keyMaterial = await importPBKDF2Key(text);
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: new Uint8Array(8),
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-KW", length: 256 },
+    true,
     ["wrapKey", "unwrapKey"],
   );
 }
 
-export async function wrapKeyWithKeyKW(
-  keyToBeWrapped,
-  wrappingKey
-) {
-  try {
-    const wrappedKey = await window.crypto.subtle.wrapKey(
-      "raw",
-      keyToBeWrapped,
-      wrappingKey,
-      {
-        name: "AES-KW",
-      }
-    );
-    return wrappedKey;
-  } catch (e) {
-    console.error("wrapKeyWithKWKey error: ", e);
-    throw e; // Re-throw the error for handling at a higher level, if needed
-  }
+export async function exportCryptoKeyToBytes(key) {
+  const exported = await window.crypto.subtle.exportKey("raw", key);
+  const exportedKeyBuffer = new Uint8Array(exported);
+  return exportedKeyBuffer;
 }
+
+export async function wrapKeyWithKeyAESKW(keyToWrap, wrappingKey) {
+  const keyAB = await window.crypto.subtle.wrapKey("raw", keyToWrap, wrappingKey, "AES-KW");
+  return await new Uint8Array(keyAB);
+}
+
+export async function generateNonce() {
+  const key = await generateAESKWKey();
+  return await exportCryptoKeyToBytes(key);
+}
+
+export async function generateECDSA() {
+  const keyPair = await crypto.subtle.generateKey(
+    {
+        name: "ECDSA",
+        namedCurve: "P-521",
+    },
+    true,
+    ['sign', 'verify']
+  );
+  return keyPair;
+}
+
+export async function generateECDH () {
+  const keyPair = await crypto.subtle.generateKey(
+    {
+        name: "ECDH",
+        namedCurve: "P-384",
+    },
+    true,
+    ["deriveKey"]
+  );
+  return keyPair;
+}
+
+

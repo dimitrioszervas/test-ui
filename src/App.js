@@ -1,6 +1,9 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, generateAESKWKey, deriveKeyPBKDF2, wrapKeyWithKeyKW } from "./CryptoUtils";
-import { exportKey as exportCryptoKeyToRaw } from "./CryptoUtils";
+import { deriveKeys, generateAESKWKey, 
+         deriveKeyPBKDF2, wrapKeyWithKeyAESKW, 
+         generateNonce, generateECDSA, generateECDH,
+        exportCryptoKeyToBytes } from "./CryptoUtils";
+import { exportCryptoKeyToAB as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
 import { getQueriesForElement } from "@testing-library/react";
@@ -66,20 +69,25 @@ const register = async() => {
   const TOKEN = await generateAESKWKey();
   console.log("TOKEN: ", TOKEN);
 
-  const NONCE = await generateAESKWKey();
+  const NONCE = await generateNonce();
   console.log("NONCE: ", NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = "Password";
-  //const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
-  //const wTOKEN = await wrapKeyWithKeyKW(TOKEN, PASSKEY);
+  const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
+  const wTOKEN = await wrapKeyWithKeyAESKW(TOKEN, PASSKEY);
+
+  const DS = await generateECDSA();
+  const DE = await generateECDH();
+
+  const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
+  const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
 
   let registerTransanction = {  
-    DS_PUB: new Uint8Array(32),
-    DE_PUB: new Uint8Array(32), 
-    wTOKEN: new Uint8Array(32), 
-    NONCE: new Uint8Array(32),
-    inviteID
+    DS_PUB,
+    DE_PUB, 
+    wTOKEN, 
+    NONCE
   };
 
   console.log("Sent Data: ", registerTransanction);
@@ -106,8 +114,7 @@ const login = async() => {
   for (let i = 0; i <= numServers; i++) {
     ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(encrypts[i])));     
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));      
-  }
- 
+  } 
 
   let loginTransanction = {   
     DS_PUB: new Uint8Array(32),
