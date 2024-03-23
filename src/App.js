@@ -91,13 +91,13 @@ const register = async() => {
 
 const login = async() => {
                 
-  const ownerCode = OWNER_CODE;
+  const inviteCode = INVITE_CODE;
 
   // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
   // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
   // We have 3 servers 
   const numServers = 3;
-  const [encrypts, signs, src] = await deriveKeys(ownerCode, numServers);
+  const [encrypts, signs, src] = await deriveKeys(inviteCode, numServers);
   
   // Convert encrypts & signs CryptoKeys to raw binary
   let ENCRYPTS = [];
