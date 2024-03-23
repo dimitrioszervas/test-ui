@@ -34,18 +34,18 @@ const invite = async() => {
   // send invite.id + invite.KEYS as transaction data using owner.KEYS
 
   // Convert encrypts & signs CryptoKeys to raw binary
-  let ENCRYPTS = [];
-  let SIGNS = [];
+  let invRawENCRYPTS = [];
+  let invRawSIGNS = [];
   for (let i = 0; i <= numServers; i++) {
-    ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(invENCRYPTS[i])));     
-    SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(invSIGNS[i])));      
+    invRawENCRYPTS.push(await exportCryptoKeyToBytes(invENCRYPTS[i]));     
+    invRawSIGNS.push(await exportCryptoKeyToBytes(invSIGNS[i]));      
   }
 
   // Compose transaction and send KEYS using OWN_KEYS
   let inviteTransanction = {   
-    ENCRYPTS,
-    SIGNS,
-    inviteID 
+    invENCRYPTS: invRawENCRYPTS,
+    invSIGNS: invRawENCRYPTS,
+    inviteID: inviteID 
   };
 
   // Send transaction to server
