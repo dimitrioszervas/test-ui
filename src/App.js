@@ -68,6 +68,7 @@ const register = async() => {
   const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
 
   // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login
+  const deviceLOGIN_SIGNS = deviceSIGNS[0];
 
   // create TOKEN + NONCE as 256 bits keys
   const TOKEN = await generateAesKWKey(); 
