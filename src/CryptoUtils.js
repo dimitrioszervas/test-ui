@@ -236,7 +236,7 @@ export async function generateECDSAKeyPair() {
   const keyPair = await crypto.subtle.generateKey(
     {
         name: "ECDSA",
-        namedCurve: "P-521",
+        namedCurve: "P-256"//"P-521",
     },
     true,
     ['sign', 'verify']
@@ -248,7 +248,8 @@ export async function generateECDHKeyPair () {
   const keyPair = await crypto.subtle.generateKey(
     {
         name: "ECDH",
-        namedCurve: "P-384",
+        namedCurve: "P-256",//"P-384",
+        hash: "SHA-256",
     },
     true,
     ['deriveKey']
