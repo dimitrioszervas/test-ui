@@ -66,11 +66,8 @@ const register = async() => {
   const [invENCRYPTS, invSIGNS, inviteID] = await deriveKeys(inviteCode, numServers);
 
   // create TOKEN + NONCE as 256 bits keys
-  const TOKEN = await generateAESKWKey();
-  console.log("TOKEN: ", TOKEN);
-
+  const TOKEN = await generateAESKWKey(); 
   const NONCE = await generateNonce();
-  console.log("NONCE: ", NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = "Password";
@@ -94,7 +91,7 @@ const register = async() => {
 
   let response = await encryptDataAndSendtoServer(invENCRYPTS, invSIGNS, inviteID, REGISTER_URL, numServers, registerTransanction);
     
-  console.log("Response: ", response); 
+  console.log("Response: ", response.SE_PUB); 
 } 
 
 const login = async() => {
