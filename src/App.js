@@ -1,6 +1,6 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, generateAESKWKey, 
-         deriveKeyPBKDF2, wrapKeyWithKeyAESKW, 
+import { deriveKeys, generateAESKWKey as generateAesKWKey, 
+         deriveKeyPBKDF2, wrapKeyWithKeyAESKW as wrapKeyWithKeyAesKW, 
          generateNonce, generateECDSA, generateECDH,
         exportCryptoKeyToBytes } from "./CryptoUtils";
 import { exportCryptoKeyToAB as exportCryptoKeyToRaw } from "./CryptoUtils";
@@ -59,23 +59,38 @@ const register = async() => {
   const numServers = NUM_SERVERS;
 
   // the new user needs to open the web app in a browser, then register using the invite.CODE
-  // get invite.CODE from the user
-  const inviteCode = INVITE_CODE; 
+  // get device.CODE from the user
+  const deviceCode = INVITE_CODE; 
    
-  // derive invite.id + invite.SECRET + invite.KEYS (invite.SIGNS + invite.ENCRYPTS)
-  const [invENCRYPTS, invSIGNS, inviteID] = await deriveKeys(inviteCode, numServers);
+  // derive device.id + device.SECRET + device.KEYS (device.SIGNS + device.ENCRYPTS)
+  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
+
+  // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login
 
   // create TOKEN + NONCE as 256 bits keys
-  const TOKEN = await generateAESKWKey(); 
+  const TOKEN = await generateAesKWKey(); 
   const NONCE = await generateNonce();
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = "Password";
+  
+  // derive PASSKEY FROM PASSWORD using PBKDF2
   const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
-  const wTOKEN = await wrapKeyWithKeyAESKW(TOKEN, PASSKEY);
 
+  // wTOKEN = wrap TOKEN with PASSKEY using AES-KW
+  const wTOKEN = await wrapKeyWithKeyAesKW(TOKEN, PASSKEY);
+
+  // DS = create ECDSA key pair
   const DS = await generateECDSA();
+
+  // DE = create ECDH key pair
   const DE = await generateECDH();
+
+  // store DS.PRIV +  DE.PRIV
+  //const DS_PRIV = await exportCryptoKeyToBytes(DS.privateKey);
+  //const DE_PRIV = await exportCryptoKeyToBytes(DE.privateKey);
+
+  //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
 
   const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
   const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
@@ -84,12 +99,13 @@ const register = async() => {
     DS_PUB,
     DE_PUB, 
     wTOKEN, 
-    NONCE
+    NONCE,
+    deviceID
   };
 
   console.log("Sent Data: ", registerTransanction);
 
-  let response = await encryptDataAndSendtoServer(invENCRYPTS, invSIGNS, inviteID, REGISTER_URL, numServers, registerTransanction);
+  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
     
   console.log("Response: ", response.SE_PUB); 
 } 
