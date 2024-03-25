@@ -1,11 +1,11 @@
 // Helper function to encode text to Uint8Array
-const encodeText = (text) => new TextEncoder().encode(text);
+const textToBytes = (text) => new TextEncoder().encode(text);
 
 // Function to import a secret key for HKDF
-const importKey = async (secret) => {
+const importHKDFDeriveKeyAndBits = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
-    secret,
+    keyData,
     { name: 'HKDF' },
     false,
     ['deriveKey', 'deriveBits']
@@ -13,7 +13,7 @@ const importKey = async (secret) => {
 };
 
 // Function to import a secret key for HKDF
-const importDeriveKey = async (keyData) => {
+const importHKDFDeriveKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
     keyData,
@@ -24,13 +24,13 @@ const importDeriveKey = async (keyData) => {
 };
 
 // Function to derive bits using HKDF
-const deriveBitsHKDF = async (secretKey, salt, infoText, bits) => {
+const deriveHKDFBits = async (secretKey, salt, infoText, bits) => {
   return window.crypto.subtle.deriveBits(
     {
       name: 'HKDF',
       hash: 'SHA-256',
       salt: salt,
-      info: encodeText(infoText),
+      info: textToBytes(infoText),
     },
     secretKey,
     bits
@@ -38,8 +38,8 @@ const deriveBitsHKDF = async (secretKey, salt, infoText, bits) => {
 };
 
 export const deriveID = async (code)=> {
-  let key = await importKey(encodeText(code)); 
-  const ab = await deriveBitsHKDF(key, encodeText(""), "id", 64);
+  let key = await importHKDFDeriveKeyAndBits(textToBytes(code)); 
+  const ab = await deriveHKDFBits(key, textToBytes(""), "id", 64);
   return new Uint8Array(ab);
 }
 
@@ -52,11 +52,11 @@ const generateNKeys = async (n, salt, type, baseKey) => {
       // if we want to create keys which will be used to sign the data
       derivedKeyAlgo = { name: "HMAC", hash: "SHA-256", length: 256 };
       keyUsage = ["sign", "verify"];    
-      info = encodeText("signs");
+      info = textToBytes("signs");
     } else {
       derivedKeyAlgo = { name: "AES-GCM", length: 256 };
       keyUsage = ["encrypt", "decrypt"];     
-      info = encodeText("encrypts");
+      info = textToBytes("encrypts");
     }
 
     let keys = [];
@@ -79,7 +79,7 @@ const generateNKeys = async (n, salt, type, baseKey) => {
 };
 
 // Function to encrypt a shard with a given CryptoKey
-export async function encryptShard(shard, cryptoKey, src) {
+export async function encryptAesGCMShard(shard, cryptoKey, src) {
 
   let iv = new Uint8Array(12);
   for (let i = 0; i < src.length; i++) {
@@ -98,9 +98,19 @@ export async function calculateHMAC(data, cryptoKey) {
   return new Uint8Array(signature).buffer;
 }
   
-export async function exportCryptoKeyToAB(key) {
-  const exportableKey = await window.crypto.subtle.exportKey("raw", key);
-  return exportableKey;
+export async function exportCryptoKeyToRaw(key) {
+  const exportedKey = await window.crypto.subtle.exportKey("raw", key);
+  return exportedKey;
+}
+
+export async function exportCryptoKeyToJwk(key) {
+  const exportedleKey = await window.crypto.subtle.exportKey("jwk", key);
+  return exportedleKey;
+}
+
+export async function exportCryptoKeyToPKCS8(key) {
+  const exportedKey = await window.crypto.subtle.exportKey("pkcs8", key);
+  return exportedKey;
 }
 
 export const deriveKeys = async(ownerCode, n) => {
@@ -110,16 +120,16 @@ export const deriveKeys = async(ownerCode, n) => {
 
     console.log("secret string: ", secretString); 
      
-    let salt = encodeText(saltString);
+    let salt = textToBytes(saltString);
 
     console.log("secret: ", secretString);
 
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let secret = await importKey(encodeText(secretString));
+    let secret = await importHKDFDeriveKeyAndBits(textToBytes(secretString));
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
-    const srcAB = await deriveBitsHKDF(secret, salt, "src", 64);
+    const srcAB = await deriveHKDFBits(secret, salt, "src", 64);
     console.log(srcAB);
   
     let src = new Uint8Array(srcAB);
@@ -129,14 +139,14 @@ export const deriveKeys = async(ownerCode, n) => {
     salt = src;
   
     // Derive sign Key from secret      
-    const signAB = await deriveBitsHKDF(secret, salt, "sign", 256);
+    const signAB = await deriveHKDFBits(secret, salt, "sign", 256);
     console.log("sign: ", signAB);  
-    let sign = await importDeriveKey(signAB);
+    let sign = await importHKDFDeriveKey(signAB);
 
     // Derive encrypt Key from secret     
-    const encryptAB = await deriveBitsHKDF(secret, salt, "encrypt", 256);
+    const encryptAB = await deriveHKDFBits(secret, salt, "encrypt", 256);
     console.log("encrypt: ",  encryptAB);  
-    let encrypt = await importDeriveKey(encryptAB);
+    let encrypt = await importHKDFDeriveKey(encryptAB);
       
     const encrypts = await generateNKeys(n, salt, "encrypt", encrypt);      
     const signs = await generateNKeys(n, salt, "sign", sign);  
@@ -167,7 +177,7 @@ export async function deriveKWSharedKey(privateKey, publicKey) {
   return sharedKey;
 }
 
-export async function generateAESKWKey() {
+export async function generateAesKWKey() {
   let key = await window.crypto.subtle.generateKey(
     {
       name: "AES-KW",
@@ -208,22 +218,21 @@ export async function deriveKeyPBKDF2(text) {
 }
 
 export async function exportCryptoKeyToBytes(key) {
-  const exported = await window.crypto.subtle.exportKey("raw", key);
-  const exportedKeyBuffer = new Uint8Array(exported);
-  return exportedKeyBuffer;
+  const exportedKeyAB = await exportCryptoKeyToRaw(key);
+  return new Uint8Array(exportedKeyAB);
 }
 
-export async function wrapKeyWithKeyAESKW(keyToWrap, wrappingKey) {
+export async function wrapKeyWithKeyAesKW(keyToWrap, wrappingKey) {
   const keyAB = await window.crypto.subtle.wrapKey("raw", keyToWrap, wrappingKey, "AES-KW");
   return await new Uint8Array(keyAB);
 }
 
 export async function generateNonce() {
-  const key = await generateAESKWKey();
+  const key = await generateAesKWKey();
   return await exportCryptoKeyToBytes(key);
 }
 
-export async function generateECDSA() {
+export async function generateECDSAKeyPair() {
   const keyPair = await crypto.subtle.generateKey(
     {
         name: "ECDSA",
@@ -235,14 +244,14 @@ export async function generateECDSA() {
   return keyPair;
 }
 
-export async function generateECDH () {
+export async function generateECDHKeyPair () {
   const keyPair = await crypto.subtle.generateKey(
     {
         name: "ECDH",
         namedCurve: "P-384",
     },
     true,
-    ["deriveKey"]
+    ['deriveKey']
   );
   return keyPair;
 }

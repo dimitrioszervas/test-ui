@@ -1,9 +1,11 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, generateAESKWKey as generateAesKWKey, 
-         deriveKeyPBKDF2, wrapKeyWithKeyAESKW as wrapKeyWithKeyAesKW, 
-         generateNonce, generateECDSA, generateECDH,
-        exportCryptoKeyToBytes } from "./CryptoUtils";
-import { exportCryptoKeyToAB as exportCryptoKeyToRaw } from "./CryptoUtils";
+import { deriveKeys, generateAesKWKey as generateAesKWKey, 
+         deriveKeyPBKDF2, wrapKeyWithKeyAesKW as wrapKeyWithKeyAesKW, 
+         generateNonce, generateECDSAKeyPair, generateECDHKeyPair,
+        exportCryptoKeyToBytes,
+        exportCryptoKeyToPKCS8, 
+        exportCryptoKeyToJwk} from "./CryptoUtils";
+import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
 import { getQueriesForElement } from "@testing-library/react";
@@ -81,14 +83,14 @@ const register = async() => {
   const wTOKEN = await wrapKeyWithKeyAesKW(TOKEN, PASSKEY);
 
   // DS = create ECDSA key pair
-  const DS = await generateECDSA();
+  const DS = await generateECDSAKeyPair();
 
   // DE = create ECDH key pair
-  const DE = await generateECDH();
+  const DE = await generateECDHKeyPair();
 
   // store DS.PRIV +  DE.PRIV
-  //const DS_PRIV = await exportCryptoKeyToBytes(DS.privateKey);
-  //const DE_PRIV = await exportCryptoKeyToBytes(DE.privateKey);
+  const DS_PRIV = await exportCryptoKeyToJwk(DS.privateKey);
+  const DE_PRIV = await exportCryptoKeyToJwk(DE.privateKey);
 
   //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
 
