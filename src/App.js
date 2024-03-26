@@ -18,32 +18,50 @@ const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
 const NUM_SERVERS = 3;
 
-let STORED_DS_PRIV;
-let STORED_DE_PRIV;
-let STORED_SE_PUB;
+let g_storedDeviceID;
+let g_storedDeviceLOGIN_SIGN;
+let g_storedDS_PRIV;
+let g_storedDE_PRIV;
+let g_storedSE_PUB;
+
+async function storeDeviceID(devideID) {
+  g_storedDeviceID = devideID;
+}
+
+async function storeLOGIN_SIGN(deviceLOGIN_SIGNS_0) {
+  g_storedDeviceLOGIN_SIGN = deviceLOGIN_SIGNS_0;
+}
 
 async function storeDS_PRIV(DS_PRIV) {
-  STORED_DS_PRIV = DS_PRIV;
+  g_storedDS_PRIV = DS_PRIV;
 }
 
 async function storeDE_PRIV(DE_PRIV) {
-  STORED_DE_PRIV = DE_PRIV;
+  g_storedDE_PRIV = DE_PRIV;
 }
 
 async function storeSE_PUB(SE_PUB) {
-  STORED_SE_PUB = SE_PUB;
+  g_storedSE_PUB = SE_PUB;
+}
+
+async function getStoredDeviceI() {
+  return g_storedDeviceID;
+}
+
+async function getStoredLOGIN_SIGN() {
+  return g_storedDeviceLOGIN_SIGN;
 }
 
 async function getStoredDS_PRIV() {
-  return STORED_DS_PRIV;
+  return g_storedDS_PRIV;
 }
 
 async function getStoredDE_PRIV() {
-  return STORED_DE_PRIV;
+  return g_storedDE_PRIV;
 }
 
 async function getStoredSE_PUB() {
-  return STORED_SE_PUB;
+  return g_storedSE_PUB;
 }
 
 const invite = async() => {
@@ -96,8 +114,9 @@ const register = async() => {
   // derive device.id + device.SECRET + device.KEYS (device.SIGNS + device.ENCRYPTS)
   const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
 
-  // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login
-  const deviceLOGIN_SIGNS = deviceSIGNS[0];
+  // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login 
+  await storeDeviceID(deviceID);
+  await storeLOGIN_SIGN(deviceSIGNS[0])
 
   // create TOKEN + NONCE as 256 bits keys
   const TOKEN = await generateAesKWKey(); 
