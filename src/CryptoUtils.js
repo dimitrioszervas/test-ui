@@ -22,13 +22,33 @@ const importRawHKDFDeriveKey = async (keyData) => {
     ['deriveKey']
   );
 };
+
+export const importRawECDHEncryptDecryptKey = async (keyData) => {
+  return window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "ECDH",  namedCurve: "P-256" },
+    true,
+    ["encrypt", "decrypt"]
+  );
+};
+
+export const importRawECDHSignVerifyKey = async (keyData) => {
+  return window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "ECDH",  namedCurve: "P-256" },
+    true,
+    ["sign", "verify"]
+  );
+};
   
 // Function to import a Jwk HKDF Key for deriving keys 
-const importJwkHKDFDeriveKey = async (keyData) => {
+export const importJwkHKDFDeriveKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     'jwk',
     keyData,
-    { name: 'HKDF' },
+    { name: 'HKDF',  namedCurve: "P-256" },
     false,
     ['deriveKey']
   );
@@ -170,22 +190,37 @@ export const deriveKeys = async(ownerCode, n) => {
   }
 }
 
-export async function deriveKWSharedKey(privateKey, publicKey) {
- 
-  const sharedKey = await window.crypto.subtle.deriveKey(
+export async function deriveECDHKeyKWForEnryptDecrypt(publicKey, privateKey) { 
+  return window.crypto.subtle.deriveKey(
     {
       name: "ECDH",
       public: publicKey,
     },
     privateKey,
     {
-      name: "AES-KW",
+      name: "AES-GCM",
       length: 256,
     },
     true,
-    ["wrapKey", "unwrapKey"]
+    ["encrypt", "decrypt"],
   );
-  return sharedKey;
+}
+
+export async function deriveECDHKeyKWForSignVerify(publicKey, privateKey) { 
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "ECDH",
+      public: publicKey,
+    },
+    privateKey,
+    {
+      name: "HMAC", 
+      hash: "SHA-256",
+      length: 256,
+    },
+    true,
+    ["sign", "verify"],
+  );
 }
 
 export async function generateAesKWKey() {
@@ -235,6 +270,17 @@ export async function exportCryptoKeyToBytes(key) {
 
 export async function wrapKeyWithKeyAesKW(keyToWrap, wrappingKey) {
   const keyAB = await window.crypto.subtle.wrapKey("raw", keyToWrap, wrappingKey, "AES-KW");
+  return await new Uint8Array(keyAB);
+}
+
+export async function urwrapKeyWithKeyAesKW(keyToUnwrap, wrappingKey) {
+  const keyAB = await window.crypto.subtle.unwrapKey(
+    "raw", 
+  keyToUnwrap, wrappingKey,  "AES-KW", // algorithm identifier for key encryption key
+  "AES-GCM", // algorithm identifier for key to unwrap
+  true, // extractability of key to unwrap
+  ["wrapKey", "unwrapKey"], // key usages for key to unwrap
+  );
   return await new Uint8Array(keyAB);
 }
 

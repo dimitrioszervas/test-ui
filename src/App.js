@@ -1,14 +1,24 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, generateAesKWKey, 
-         deriveKeyPBKDF2, wrapKeyWithKeyAesKW, 
-         generateECDSAKeyPair, generateECDHKeyPair,
-        exportCryptoKeyToBytes,     
-        exportCryptoKeyToJwk} from "./CryptoUtils";
+import { deriveKeys,
+         deriveECDHKeyKWForEnryptDecrypt,
+         deriveECDHKeyKWForSignVerify, 
+         generateAesKWKey, 
+         deriveKeyPBKDF2, 
+         wrapKeyWithKeyAesKW, 
+         urwrapKeyWithKeyAesKW,
+         generateECDSAKeyPair, 
+         generateECDHKeyPair,
+         exportCryptoKeyToBytes,     
+         exportCryptoKeyToJwk,
+         importRawECDHEncryptDecryptKey,
+         importRawECDHSignVerifyKey
+        } from "./CryptoUtils";
 
 import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
 import { getQueriesForElement } from "@testing-library/react";
+import { AES } from "crypto-js";
 
 const INVITE_URL = "https://localhost:7125/api/Transactions/Invite";
 const REGISTER_URL = "https://localhost:7125/api/Transactions/Register";
@@ -17,9 +27,11 @@ const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";
 const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
 const NUM_SERVERS = 3;
+const MY_PASSWORD = "Password";
 
 let g_storedDeviceID;
-let g_storedDeviceLOGIN_SIGN;
+let g_storedLOGIN_ENCRYPTS;
+let g_storedLOGIN_SIGNS;
 let g_storedDS_PRIV;
 let g_storedDE_PRIV;
 let g_storedSE_PUB;
@@ -31,8 +43,12 @@ async function storeDeviceID(devideID) {
   g_storedDeviceID = devideID;
 }
 
-async function storeLOGIN_SIGN(deviceLOGIN_SIGNS_0) {
-  g_storedDeviceLOGIN_SIGN = deviceLOGIN_SIGNS_0;
+async function storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS) {
+  g_storedLOGIN_ENCRYPTS = LOGIN_ENCRYPTS;
+}
+
+async function storeLOGIN_SIGNS(LOGIN_SIGNS) {
+  g_storedLOGIN_SIGNS = LOGIN_SIGNS;
 }
 
 async function storeDS_PRIV(DS_PRIV) {
@@ -59,12 +75,31 @@ async function storeWSIGNS(wSIGNS) {
   g_storedWSIGNS = wSIGNS;
 }
 
-async function getStoredDeviceI() {
+async function getStoredDeviceID() {
   return g_storedDeviceID;
 }
 
-async function getStoredLOGIN_SIGN() {
-  return g_storedDeviceLOGIN_SIGN;
+async function getStoredLOGIN_ENCRYPTS() {
+  /*
+  let LOGIN_ENCRYPTS = [];
+  for (let i = 0; i < g_storedLOGIN_ENCRYPTS.length; i++) {
+    let cryptoKey = await importRawECDHEncryptDecryptKey(g_storedLOGIN_ENCRYPTS[i]);
+    LOGIN_ENCRYPTS.push(cryptoKey);
+  }
+  return LOGIN_ENCRYPTS;*/
+  return g_storedLOGIN_ENCRYPTS;
+}
+
+async function getStoredLOGIN_SIGNS() {
+  /*
+  let LOGIN_SIGNS = [];
+  for (let i = 0; i < g_storedLOGIN_SIGNS.length; i++) {
+    let cryptoKey = await importRawECDHSignVerifyKey(g_storedLOGIN_SIGNS[i]);
+    LOGIN_SIGNS.push(cryptoKey);
+  }  
+  return LOGIN_SIGNS;
+  */
+  return g_storedLOGIN_SIGNS;
 }
 
 async function getStoredDS_PRIV() {
@@ -138,18 +173,14 @@ const register = async() => {
    
   // derive device.id + device.SECRET + device.KEYS (device.SIGNS + device.ENCRYPTS)
   const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
-
-  // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login 
-  await storeDeviceID(deviceID);
-  await storeLOGIN_SIGN(deviceSIGNS[0])
-
+ 
   // create TOKEN + NONCE as 256 bits keys
   const TOKEN = await generateAesKWKey(); 
   const NONCE = await generateAesKWKey();
   const binNONCE = await exportCryptoKeyToBytes(NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
-  const PASSWORD = "Password";
+  const PASSWORD = MY_PASSWORD;
   
   // derive PASSKEY FROM PASSWORD using PBKDF2
   const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
@@ -169,11 +200,12 @@ const register = async() => {
   await storeDS_PRIV(DS_PRIV);
   await storeDE_PRIV(DE_PRIV);
 
-  //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
+  // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login
+  await storeDeviceID(deviceID); 
 
+  //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
   const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
   const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
-
   let registerTransanction = {  
     DS_PUB,
     DE_PUB, 
@@ -182,11 +214,25 @@ const register = async() => {
     deviceID
   };
 
-  console.log("Sent Data: ", registerTransanction);
-
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
     
-  await storeSE_PUB(response.SE_PUB); 
+  const SE_PUB = response.SE_PUB;
+
+  const SE_PUB_ENCRYPT = await importRawECDHEncryptDecryptKey(new Uint8Array(SE_PUB[0]).buffer);
+
+  let LOGIN_ENCRYPTS = [];
+  let LOGIN_SIGNS = [];
+  for (let i = 0; i <= numServers; i++) {
+    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(DE.publicKey, DE.privateKey);
+    LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
+    
+    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(DE.publicKey, DE.privateKey);
+    LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
+  }
+  await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
+  await storeLOGIN_SIGNS(LOGIN_SIGNS);
+
+  await storeSE_PUB(SE_PUB); 
 
   // create SECRET + derive KEY for invite.id, which can be used 
   // for the tansaction session after successful login
@@ -212,9 +258,10 @@ const register = async() => {
 } 
 
 const login = async() => {
-                
-  const inviteCode = INVITE_CODE;
-
+  
+  // We have 3 servers 
+  const numServers = NUM_SERVERS;
+  
   // create NONCE
   const NONCE = await generateAesKWKey();
   const binNONCE = await exportCryptoKeyToBytes(NONCE);
@@ -233,21 +280,10 @@ const login = async() => {
 
   const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
   const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
-
-  // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-  // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
-  // We have 3 servers 
-  const numServers = 3;
-  const [encrypts, signs, src] = await deriveKeys(inviteCode, numServers);
-  
-  // Convert encrypts & signs CryptoKeys to raw binary
-  let ENCRYPTS = [];
-  let SIGNS = [];
- 
-  for (let i = 0; i <= numServers; i++) {
-    ENCRYPTS.push(new Uint8Array(await exportCryptoKeyToRaw(encrypts[i])));     
-    SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));      
-  } 
+    
+  const deviceID = await getStoredDeviceID()
+  const LOGIN_ENCRYPTS = await getStoredLOGIN_ENCRYPTS();
+  const LOGIN_SIGNS = await getStoredLOGIN_SIGNS();
 
   const wENCRYPTS = await getStoredWENCRYPTS();
   const wSIGNS = await getStoredWSIGNS();
@@ -263,8 +299,24 @@ const login = async() => {
 
   console.log("Sent Data: ", loginTransanction);
 
-  let response = await encryptDataAndSendtoServer(encrypts, signs, src, LOGIN_URL, numServers, loginTransanction);
+  let response = await encryptDataAndSendtoServer(LOGIN_ENCRYPTS, LOGIN_SIGNS, deviceID, LOGIN_URL, numServers, loginTransanction);
   console.log("Response: ", response); 
+
+  /*
+  const wTOKEN = new Uint8Array(response.wTOKEN);
+  const SE_PUB = response.SE_PUB;
+
+  //  get PASSWORD
+  const PASSWORD = MY_PASSWORD;
+  const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
+
+  // unwrap wTOKEN with PASSWORD 
+  const TOKEN = await urwrapKeyWithKeyAesKW(wTOKEN, PASSKEY);
+
+  // unwrap wSECRET with TOKEN
+  const wSECRET = await getStoredWSECRET();
+  //const SECRET = await urwrapKeyWithKeyAesKW(wSECRET, )
+  */
 } 
 
 function App() {  
