@@ -1,8 +1,8 @@
 // Helper function to encode text to Uint8Array
 const textToBytes = (text) => new TextEncoder().encode(text);
 
-// Function to import a secret key for HKDF
-const importHKDFDeriveKeyAndBits = async (keyData) => {
+// Function to import a Raw HKDF Key for deriving keys or bits 
+const importRawHKDFDeriveKeyAndBits = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
     keyData,
@@ -12,10 +12,21 @@ const importHKDFDeriveKeyAndBits = async (keyData) => {
   );
 };
 
-// Function to import a secret key for HKDF
-const importHKDFDeriveKey = async (keyData) => {
+// Function to import a Raw HKDF Key for deriving keys
+const importRawHKDFDeriveKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
+    keyData,
+    { name: 'HKDF' },
+    false,
+    ['deriveKey']
+  );
+};
+  
+// Function to import a Jwk HKDF Key for deriving keys 
+const importJwkHKDFDeriveKey = async (keyData) => {
+  return window.crypto.subtle.importKey(
+    'jwk',
     keyData,
     { name: 'HKDF' },
     false,
@@ -38,7 +49,7 @@ const deriveHKDFBits = async (secretKey, salt, infoText, bits) => {
 };
 
 export const deriveID = async (code)=> {
-  let key = await importHKDFDeriveKeyAndBits(textToBytes(code)); 
+  let key = await importRawHKDFDeriveKeyAndBits(textToBytes(code)); 
   const ab = await deriveHKDFBits(key, textToBytes(""), "id", 64);
   return new Uint8Array(ab);
 }
@@ -125,7 +136,7 @@ export const deriveKeys = async(ownerCode, n) => {
     console.log("secret: ", secretString);
 
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let secret = await importHKDFDeriveKeyAndBits(textToBytes(secretString));
+    let secret = await importRawHKDFDeriveKeyAndBits(textToBytes(secretString));
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
@@ -141,12 +152,12 @@ export const deriveKeys = async(ownerCode, n) => {
     // Derive sign Key from secret      
     const signAB = await deriveHKDFBits(secret, salt, "sign", 256);
     console.log("sign: ", signAB);  
-    let sign = await importHKDFDeriveKey(signAB);
+    let sign = await importRawHKDFDeriveKey(signAB);
 
     // Derive encrypt Key from secret     
     const encryptAB = await deriveHKDFBits(secret, salt, "encrypt", 256);
     console.log("encrypt: ",  encryptAB);  
-    let encrypt = await importHKDFDeriveKey(encryptAB);
+    let encrypt = await importRawHKDFDeriveKey(encryptAB);
       
     const encrypts = await generateNKeys(n, salt, "encrypt", encrypt);      
     const signs = await generateNKeys(n, salt, "sign", sign);  
