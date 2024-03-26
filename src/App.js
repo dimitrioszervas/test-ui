@@ -18,6 +18,34 @@ const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
 const NUM_SERVERS = 3;
 
+let STORED_DS_PRIV;
+let STORED_DE_PRIV;
+let STORED_SE_PUB;
+
+async function storeDS_PRIV(DS_PRIV) {
+  STORED_DS_PRIV = DS_PRIV;
+}
+
+async function storeDE_PRIV(DE_PRIV) {
+  STORED_DE_PRIV = DE_PRIV;
+}
+
+async function storeSE_PUB(SE_PUB) {
+  STORED_SE_PUB = SE_PUB;
+}
+
+async function getStoredDS_PRIV() {
+  return STORED_DS_PRIV;
+}
+
+async function getStoredDE_PRIV() {
+  return STORED_DE_PRIV;
+}
+
+async function getStoredSE_PUB() {
+  return STORED_SE_PUB;
+}
+
 const invite = async() => {
    
   // get owner.CODE from the user that is making the invite
@@ -54,6 +82,7 @@ const invite = async() => {
   let response = await encryptDataAndSendtoServer(ownENCRYPTS, ownSIGNS, ownerID, INVITE_URL, numServers, inviteTransanction);
   console.log("Response: ", response);
   
+  storeSE_PUB(response.SE_PUB);
 }
 
 const register = async() => {
@@ -93,6 +122,9 @@ const register = async() => {
   const DS_PRIV = await exportCryptoKeyToJwk(DS.privateKey);
   const DE_PRIV = await exportCryptoKeyToJwk(DE.privateKey);
 
+  await storeDS_PRIV(DS_PRIV);
+  await storeDE_PRIV(DE_PRIV);
+
   //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
 
   const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
@@ -110,12 +142,14 @@ const register = async() => {
 
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
     
-  console.log("Response: ", response.SE_PUB); 
+  await storeSE_PUB(response.SE_PUB); 
 } 
 
 const login = async() => {
                 
   const inviteCode = INVITE_CODE;
+
+  console.log("getStoredDE_PRIV: ", await getStoredDE_PRIV());
 
   // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
   // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
