@@ -1,10 +1,10 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys, generateAesKWKey as generateAesKWKey, 
-         deriveKeyPBKDF2, wrapKeyWithKeyAesKW as wrapKeyWithKeyAesKW, 
-         generateNonce, generateECDSAKeyPair, generateECDHKeyPair,
-        exportCryptoKeyToBytes,
-        exportCryptoKeyToPKCS8, 
+import { deriveKeys, generateAesKWKey, 
+         deriveKeyPBKDF2, wrapKeyWithKeyAesKW, 
+         generateECDSAKeyPair, generateECDHKeyPair,
+        exportCryptoKeyToBytes,     
         exportCryptoKeyToJwk} from "./CryptoUtils";
+
 import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
@@ -23,6 +23,9 @@ let g_storedDeviceLOGIN_SIGN;
 let g_storedDS_PRIV;
 let g_storedDE_PRIV;
 let g_storedSE_PUB;
+let g_storedWSECRET;
+let g_storedWENCRYPTS;
+let g_storedWSIGNS;
 
 async function storeDeviceID(devideID) {
   g_storedDeviceID = devideID;
@@ -44,6 +47,18 @@ async function storeSE_PUB(SE_PUB) {
   g_storedSE_PUB = SE_PUB;
 }
 
+async function storeWSECRET(wSECRET) {
+  g_storedWSECRET = wSECRET;
+}
+
+async function storeWENCRYPTS(wENCRYPTS) {
+  g_storedWENCRYPTS = wENCRYPTS;
+}
+
+async function storeWSIGNS(wSIGNS) {
+  g_storedWSIGNS = wSIGNS;
+}
+
 async function getStoredDeviceI() {
   return g_storedDeviceID;
 }
@@ -62,6 +77,18 @@ async function getStoredDE_PRIV() {
 
 async function getStoredSE_PUB() {
   return g_storedSE_PUB;
+}
+
+async function getStoredWSECRET() {
+  return g_storedWSECRET;
+}
+
+async function getStoredWENCRYPTS() {
+  return g_storedWENCRYPTS;
+}
+
+async function getStoredWSIGNS() {
+  return g_storedWSIGNS;
 }
 
 const invite = async() => {
@@ -118,7 +145,8 @@ const register = async() => {
 
   // create TOKEN + NONCE as 256 bits keys
   const TOKEN = await generateAesKWKey(); 
-  const NONCE = await generateNonce();
+  const NONCE = await generateAesKWKey();
+  const binNONCE = await exportCryptoKeyToBytes(NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = "Password";
@@ -150,7 +178,7 @@ const register = async() => {
     DS_PUB,
     DE_PUB, 
     wTOKEN, 
-    NONCE,
+    NONCE: binNONCE,
     deviceID
   };
 
@@ -162,14 +190,25 @@ const register = async() => {
 
   // create SECRET + derive KEY for invite.id, which can be used 
   // for the tansaction session after successful login
-
+  const SECRET = await deriveKeyPBKDF2(deviceCode);
 
   // store wSECRET = SECRET wrap by TOKEN
-
-
-  // store wKEYS = KEYS wrap by NONCE
-
+  const wSECRET = await wrapKeyWithKeyAesKW(SECRET, TOKEN);
+  await storeWSECRET(wSECRET);
   
+  // store wKEYS = KEYS wrap by NONCE
+  let wENCRYPTS = [];
+  let wSIGNS = [];
+  for (let i = 0; i <= numServers; i++) {
+    const wENCRYPT = await wrapKeyWithKeyAesKW(deviceENCRYPTS[i], NONCE);
+    const wSIGN = await wrapKeyWithKeyAesKW(deviceSIGNS[i], NONCE);
+
+    wENCRYPTS.push(wENCRYPT);
+    wSIGNS.push(wSIGN);
+  } 
+  
+  await storeWENCRYPTS(wENCRYPTS);
+  await storeWSIGNS(wSIGNS);
 } 
 
 const login = async() => {
@@ -177,7 +216,8 @@ const login = async() => {
   const inviteCode = INVITE_CODE;
 
   // create NONCE
-  const NONCE = await generateNonce();
+  const NONCE = await generateAesKWKey();
+  const binNONCE = await exportCryptoKeyToBytes(NONCE);
 
   // DS = create ECDSA key pair
   const DS = await generateECDSAKeyPair();
@@ -209,13 +249,16 @@ const login = async() => {
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));      
   } 
 
+  const wENCRYPTS = await getStoredWENCRYPTS();
+  const wSIGNS = await getStoredWSIGNS();
+
   // send DS.PUB + DE.PUB + wKEYS + NONCE
   let loginTransanction = {   
     DS_PUB,
     DE_PUB,           
-    wENCRYPTS: ENCRYPTS,
-    wSIGNS: SIGNS,  
-    NONCE
+    wENCRYPTS,
+    wSIGNS,  
+    NONCE: binNONCE
   };
 
   console.log("Sent Data: ", loginTransanction);

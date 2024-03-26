@@ -238,11 +238,6 @@ export async function wrapKeyWithKeyAesKW(keyToWrap, wrappingKey) {
   return await new Uint8Array(keyAB);
 }
 
-export async function generateNonce() {
-  const key = await generateAesKWKey();
-  return await exportCryptoKeyToBytes(key);
-}
-
 export async function generateECDSAKeyPair() {
   const keyPair = await crypto.subtle.generateKey(
     {
