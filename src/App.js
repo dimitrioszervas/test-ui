@@ -11,7 +11,9 @@ import { deriveKeys,
          exportCryptoKeyToBytes,     
          exportCryptoKeyToJwk,
          importRawECDHEncryptDecryptKey,
-         importRawECDHSignVerifyKey
+         importRawECDHSignVerifyKey,
+         importRawECDHEncryptDecryptPublicKey,
+         importRawECDHSignVerifyPublicKey
         } from "./CryptoUtils";
 
 import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
@@ -218,16 +220,19 @@ const register = async() => {
     
   const SE_PUB = response.SE_PUB;
 
-  const SE_PUB_ENCRYPT = await importRawECDHEncryptDecryptKey(new Uint8Array(SE_PUB[0]).buffer);
-
   let LOGIN_ENCRYPTS = [];
   let LOGIN_SIGNS = [];
   for (let i = 0; i <= numServers; i++) {
-    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(DE.publicKey, DE.privateKey);
+    /*
+    const SE_PUB_ENCRYPT = await importRawECDHEncryptDecryptPublicKey(new Uint8Array(SE_PUB[i]).buffer);
+    const SE_PUB_SIGNS = await importRawECDHSignVerifyPublicKey(new Uint8Array(SE_PUB[i]).buffer);
+
+    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(SE_PUB_ENCRYPT, DE.privateKey);
     LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
     
-    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(DE.publicKey, DE.privateKey);
+    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(SE_PUB_SIGNS, DE.privateKey);
     LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
+    */
   }
   await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
   await storeLOGIN_SIGNS(LOGIN_SIGNS);
