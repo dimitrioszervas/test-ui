@@ -2,7 +2,7 @@
 const textToBytes = (text) => new TextEncoder().encode(text);
 
 // Function to import a Raw HKDF Key for deriving keys or bits 
-const importRawHKDFDeriveKeyAndBits = async (keyData) => {
+const importRawHKDFDeriveKeyDeriveBits = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
     keyData,
@@ -27,19 +27,23 @@ export const importRawECDHEncryptDecryptKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     "raw",
     keyData,
-    { name: "ECDH",  namedCurve: "P-256" },
+    { name: "ECDH", namedCurve: "P-256" },
     true,
     ["encrypt", "decrypt"]
   );
 };
 
-export const importRawECDHEncryptDecryptPublicKey = async (publicKeyData) => {
+export const importSpkiECDHEncryptDecryptKey = async (publicKeyData) => {
   return window.crypto.subtle.importKey(
-    "pkcs8",
-    publicKeyData,   
-    { name: "ECDH",  namedCurve: "P-256", hash: "SHA-256" },
-    true,   
-    ["encrypt", "decrypt"]
+    "spki",
+    publicKeyData,
+    {
+      name: "ECDH",
+      namedCurve: "P-256",
+      hash: "SHA-256",
+    },
+    true,
+    ["encrypt", "decrypt"],
   );
 };
 
@@ -47,17 +51,21 @@ export const importRawECDHSignVerifyKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     "raw",
     keyData,
-    { name: "ECDH",  namedCurve: "P-256" },
+    { name: "ECDH", namedCurve: "P-256" },
     true,
     ["sign", "verify"]
   );
 };
 
-export const importRawECDHSignVerifyPublicKey = async (publicKeyData) => {
+export const importSpkiECDHSignVerifyKey = async (publicKeyData) => {
   return window.crypto.subtle.importKey(
-    "pkcs8",
+    "spki",
     publicKeyData,   
-    { name: "ECDH",  namedCurve: "P-256", hash: "SHA-256" },
+    { 
+      name: "ECDH", 
+      namedCurve: "P-256", 
+      hash: "SHA-256" 
+    },
     true,   
     ["sign", "verify"]
   );
@@ -89,7 +97,7 @@ const deriveHKDFBits = async (secretKey, salt, infoText, bits) => {
 };
 
 export const deriveID = async (code)=> {
-  let key = await importRawHKDFDeriveKeyAndBits(textToBytes(code)); 
+  let key = await importRawHKDFDeriveKeyDeriveBits(textToBytes(code)); 
   const ab = await deriveHKDFBits(key, textToBytes(""), "id", 64);
   return new Uint8Array(ab);
 }
@@ -176,7 +184,7 @@ export const deriveKeys = async(ownerCode, n) => {
     console.log("secret: ", secretString);
 
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let secret = await importRawHKDFDeriveKeyAndBits(textToBytes(secretString));
+    let secret = await importRawHKDFDeriveKeyDeriveBits(textToBytes(secretString));
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
