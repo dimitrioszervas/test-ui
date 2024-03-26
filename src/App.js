@@ -98,9 +98,7 @@ const invite = async() => {
 
   // Send transaction to server
   let response = await encryptDataAndSendtoServer(ownENCRYPTS, ownSIGNS, ownerID, INVITE_URL, numServers, inviteTransanction);
-  console.log("Response: ", response);
-  
-  storeSE_PUB(response.SE_PUB);
+  console.log("Response: ", response);  
 }
 
 const register = async() => {
@@ -161,6 +159,17 @@ const register = async() => {
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
     
   await storeSE_PUB(response.SE_PUB); 
+
+  // create SECRET + derive KEY for invite.id, which can be used 
+  // for the tansaction session after successful login
+
+
+  // store wSECRET = SECRET wrap by TOKEN
+
+
+  // store wKEYS = KEYS wrap by NONCE
+
+  
 } 
 
 const login = async() => {
