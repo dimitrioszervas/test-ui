@@ -121,7 +121,6 @@ const register = async() => {
   // store DS.PRIV +  DE.PRIV
   const DS_PRIV = await exportCryptoKeyToJwk(DS.privateKey);
   const DE_PRIV = await exportCryptoKeyToJwk(DE.privateKey);
-
   await storeDS_PRIV(DS_PRIV);
   await storeDE_PRIV(DE_PRIV);
 
@@ -149,7 +148,23 @@ const login = async() => {
                 
   const inviteCode = INVITE_CODE;
 
-  console.log("getStoredDE_PRIV: ", await getStoredDE_PRIV());
+  // create NONCE
+  const NONCE = await generateNonce();
+
+  // DS = create ECDSA key pair
+  const DS = await generateECDSAKeyPair();
+
+  // DE = create ECDH key pair
+  const DE = await generateECDHKeyPair();
+
+  // store DS.PRIV +  DE.PRIV
+  const DS_PRIV = await exportCryptoKeyToJwk(DS.privateKey);
+  const DE_PRIV = await exportCryptoKeyToJwk(DE.privateKey);
+  await storeDS_PRIV(DS_PRIV);
+  await storeDE_PRIV(DE_PRIV);
+
+  const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
+  const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
 
   // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
   // creating n encryption keys from ENCRYPT i.e ENCRYPTS    
@@ -166,12 +181,13 @@ const login = async() => {
     SIGNS.push(new Uint8Array(await exportCryptoKeyToRaw(signs[i])));      
   } 
 
+  // send DS.PUB + DE.PUB + wKEYS + NONCE
   let loginTransanction = {   
-    DS_PUB: new Uint8Array(32),
-    DE_PUB: new Uint8Array(32),           
-    NONCE: new Uint8Array(32),
+    DS_PUB,
+    DE_PUB,           
     wENCRYPTS: ENCRYPTS,
-    wSIGNS: SIGNS  
+    wSIGNS: SIGNS,  
+    NONCE
   };
 
   console.log("Sent Data: ", loginTransanction);
