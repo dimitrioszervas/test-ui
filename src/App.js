@@ -7,15 +7,13 @@ import { deriveKeys,
          wrapKeyWithKeyAesKW, 
          urwrapKeyWithKeyAesKW,
          generateECDSAKeyPair, 
-         generateECDHKeyPair,
-         exportCryptoKeyToBytes,     
+         generateECDHKeyPair,           
          exportCryptoKeyToJwk,
+         exportCryptoKeyToRaw,
          importRawECDHKeyForEncryptAndDecrypt,
          importRawECDHKeyForSignAndVerify,
          importECDHPublicKey,       
         } from "./CryptoUtils";
-
-import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
 
 import './App.css';
 import { getQueriesForElement } from "@testing-library/react";
@@ -148,17 +146,17 @@ const invite = async() => {
   // send invite.id + invite.SIGNS + invite.ENCRYPTS as invite transaction data...
 
   // Convert inviteENCRYPTS & inviteSIGNS CryptoKeys to raw binary
-  let inviteRawENCRYPTS = [];
-  let inviteRawSIGNS = [];
-  for (let i = 0; i <= numServers; i++) {
-    inviteRawENCRYPTS.push(await exportCryptoKeyToBytes(inviteENCRYPTS[i]));     
-    inviteRawSIGNS.push(await exportCryptoKeyToBytes(inviteSIGNS[i]));      
+  let inviteENCRYPTSRaw = [];
+  let inviteSIGNSRaw = [];
+  for (let n = 0; n <= numServers; n++) {
+    inviteENCRYPTSRaw.push(await exportCryptoKeyToRaw(inviteENCRYPTS[n]));     
+    inviteSIGNSRaw.push(await exportCryptoKeyToRaw(inviteSIGNS[n]));      
   }
 
   // Compose transaction and send KEYS using OWN_KEYS
   let inviteTransanction = {   
-    inviteENCRYPTS: inviteRawENCRYPTS,
-    inviteSIGNS: inviteRawSIGNS,
+    inviteENCRYPTS: inviteENCRYPTSRaw,
+    inviteSIGNS: inviteSIGNSRaw,
     inviteID: inviteID 
   };
 
@@ -181,7 +179,7 @@ const register = async() => {
   // create TOKEN + NONCE as 256 bits keys
   const TOKEN = await generateAesKW256KeyForWrapAndUnwrap(); 
   const NONCE = await generateAesKW256KeyForWrapAndUnwrap();
-  const binNONCE = await exportCryptoKeyToBytes(NONCE);
+  const binNONCE = await exportCryptoKeyToRaw(NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = MY_PASSWORD;
@@ -207,9 +205,9 @@ const register = async() => {
   // store device.id, device.LOGIN_SIGNS[0], we need to remember it for the  login
   await storeDeviceID(deviceID); 
 
-  //send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
-  const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
-  const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
+  // send DS.PUB + DE.PUB + wTOKEN  + NONCE  + device.id
+  const DS_PUB = await exportCryptoKeyToRaw(DS.publicKey);
+  const DE_PUB = await exportCryptoKeyToRaw(DE.publicKey);
   let registerTransanction = {  
     DS_PUB,
     DE_PUB, 
@@ -229,12 +227,12 @@ const register = async() => {
   // for each (n), store LOGINS[n] = ECDH.derive (DE.PRIV, SE.PUB[n])
   let LOGIN_ENCRYPTS = [];
   let LOGIN_SIGNS = [];
-  for (let i = 0; i <= numServers; i++) {
-    const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[i]).buffer);
+  for (let n = 0; n <= numServers; n++) {
+    const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[n]).buffer);
    
     let derivedECDHEcrypt = await ECDHDeriveEncrypt(DE.privateKey, cryptoKeySE_PUB);
     LOGIN_ENCRYPTS.push(derivedECDHEcrypt);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
-    console.log("derivedECDHEcryptKey: ", await exportCryptoKeyToBytes(derivedECDHEcrypt));
+    console.log("derivedECDHEcryptKey: ", await exportCryptoKeyToRaw(derivedECDHEcrypt));
    
     let derivedECDHSign = await ECDHDeriveSign(DE.privateKey, cryptoKeySE_PUB);
     LOGIN_SIGNS.push(derivedECDHSign);//await exportCryptoKeyToBytes(derivedECDHSignKey));    
@@ -276,7 +274,7 @@ const login = async() => {
   
   // create NONCE
   const NONCE = await generateAesKW256KeyForWrapAndUnwrap();
-  const binNONCE = await exportCryptoKeyToBytes(NONCE);
+  const binNONCE = await exportCryptoKeyToRaw(NONCE);
 
   // DS = create ECDSA key pair
   const DS = await generateECDSAKeyPair();
@@ -290,8 +288,8 @@ const login = async() => {
   await storeDS_PRIV(DS_PRIV);
   await storeDE_PRIV(DE_PRIV);
 
-  const DS_PUB = await exportCryptoKeyToBytes(DS.publicKey);
-  const DE_PUB = await exportCryptoKeyToBytes(DE.publicKey);
+  const DS_PUB = await exportCryptoKeyToRaw(DS.publicKey);
+  const DE_PUB = await exportCryptoKeyToRaw(DE.publicKey);
     
   const deviceID = await getStoredDeviceID()
   const LOGIN_ENCRYPTS = await getStoredLOGIN_ENCRYPTS();

@@ -141,7 +141,7 @@ export async function calculateHMAC(data, cryptoKey) {
   return new Uint8Array(signature).buffer;
 }
   
-export async function exportCryptoKeyToRaw(key) {
+export async function exportCryptoKeyToRawAB(key) {
   const exportedKey = await window.crypto.subtle.exportKey("raw", key);
   return exportedKey;
 }
@@ -275,8 +275,8 @@ export async function derivePBKDF2Key256ForWrapAndUnwrap(text) {
   );
 }
 
-export async function exportCryptoKeyToBytes(key) {
-  const exportedKeyAB = await exportCryptoKeyToRaw(key);
+export async function exportCryptoKeyToRaw(key) {
+  const exportedKeyAB = await exportCryptoKeyToRawAB(key);
   return new Uint8Array(exportedKeyAB);
 }
 
