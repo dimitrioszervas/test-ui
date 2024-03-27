@@ -230,9 +230,7 @@ const register = async() => {
     LOGIN_ENCRYPTS.push(derivedEncrypt);   
    
     const derivedSign = await ECDHDeriveSign(DE.privateKey, cryptoKeySE_PUB);
-    LOGIN_SIGNS.push(derivedSign);  
-    
-    console.log(derivedSign);
+    LOGIN_SIGNS.push(derivedSign); 
   }
 
   await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
