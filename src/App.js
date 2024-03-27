@@ -1,7 +1,7 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import { deriveKeys,
-         deriveECDHKeyKWForEnryptAndDecrypt,
-         deriveECDHKeyKWForSignAndVerify, 
+         ECDHDeriveEncrypt,
+         ECDHDeriveSign, 
          generateAesKW256KeyForWrapAndUnwrap, 
          derivePBKDF2Key256ForWrapAndUnwrap, 
          wrapKeyWithKeyAesKW, 
@@ -129,38 +129,41 @@ async function getStoredWSIGNS() {
 
 const invite = async() => {
    
-  // get owner.CODE from the user that is making the invite
-  const ownerCode = OWNER_CODE;
+  // we are using the device.CODE for the test app, but production app will 
+  // allow any logged-in user to invite others
+
+  // get device.CODE from the user that is making the invite
+  const deviceCode = OWNER_CODE;
   
-  // derive owner.id + owner.SECRET + owner.KEYS
+  // derive device.id + device.SECRET + device.SIGNS + device.ENCRYPTS
   const numServers = NUM_SERVERS; 
-  const [ownENCRYPTS, ownSIGNS, ownerID] = await deriveKeys(ownerCode, numServers);
+  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
   
   // create invite.CODE for new user DEVICE
   const inviteCode = INVITE_CODE; 
    
-  // derive invite.id + invite.SECRET + invite.KEYS (invite.SIGNS + invite.ENCRYPTS)
-  const [invENCRYPTS, invSIGNS, inviteID] = await deriveKeys(inviteCode, numServers);
+  //  derive invite.id + invite.SECRET + invite.SIGNS + invite.ENCRYPTS
+  const [inviteENCRYPTS, inviteSIGNS, inviteID] = await deriveKeys(inviteCode, numServers);
   
-  // send invite.id + invite.KEYS as transaction data using owner.KEYS
+  // send invite.id + invite.SIGNS + invite.ENCRYPTS as invite transaction data...
 
-  // Convert encrypts & signs CryptoKeys to raw binary
-  let invRawENCRYPTS = [];
-  let invRawSIGNS = [];
+  // Convert inviteENCRYPTS & inviteSIGNS CryptoKeys to raw binary
+  let inviteRawENCRYPTS = [];
+  let inviteRawSIGNS = [];
   for (let i = 0; i <= numServers; i++) {
-    invRawENCRYPTS.push(await exportCryptoKeyToBytes(invENCRYPTS[i]));     
-    invRawSIGNS.push(await exportCryptoKeyToBytes(invSIGNS[i]));      
+    inviteRawENCRYPTS.push(await exportCryptoKeyToBytes(inviteENCRYPTS[i]));     
+    inviteRawSIGNS.push(await exportCryptoKeyToBytes(inviteSIGNS[i]));      
   }
 
   // Compose transaction and send KEYS using OWN_KEYS
   let inviteTransanction = {   
-    invENCRYPTS: invRawENCRYPTS,
-    invSIGNS: invRawENCRYPTS,
+    inviteENCRYPTS: inviteRawENCRYPTS,
+    inviteSIGNS: inviteRawSIGNS,
     inviteID: inviteID 
   };
 
   // Send transaction to server
-  let response = await encryptDataAndSendtoServer(ownENCRYPTS, ownSIGNS, ownerID, INVITE_URL, numServers, inviteTransanction);
+  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, INVITE_URL, numServers, inviteTransanction);
   console.log("Response: ", response);  
 }
 
@@ -222,18 +225,19 @@ const register = async() => {
 
   console.log("response.SE_PUB: ", SE_PUB);
   
+  // LOGINS[0] = device. SIGNS[0]
+  // for each (n), store LOGINS[n] = ECDH.derive (DE.PRIV, SE.PUB[n])
   let LOGIN_ENCRYPTS = [];
   let LOGIN_SIGNS = [];
   for (let i = 0; i <= numServers; i++) {
     const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[i]).buffer);
    
-    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptAndDecrypt(cryptoKeySE_PUB, DE.privateKey);
-    LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
-    console.log("derivedECDHEcryptKey: ", await exportCryptoKeyToBytes(derivedECDHEcryptKey));
+    let derivedECDHEcrypt = await ECDHDeriveEncrypt(DE.privateKey, cryptoKeySE_PUB);
+    LOGIN_ENCRYPTS.push(derivedECDHEcrypt);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
+    console.log("derivedECDHEcryptKey: ", await exportCryptoKeyToBytes(derivedECDHEcrypt));
    
-    let derivedECDHSignKey = await deriveECDHKeyKWForSignAndVerify(cryptoKeySE_PUB, DE.privateKey);
-    LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
-    console.log("derivedECDHSignKey: ", await exportCryptoKeyToBytes(derivedECDHSignKey));
+    let derivedECDHSign = await ECDHDeriveSign(DE.privateKey, cryptoKeySE_PUB);
+    LOGIN_SIGNS.push(derivedECDHSign);//await exportCryptoKeyToBytes(derivedECDHSignKey));    
   }
 
   await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);

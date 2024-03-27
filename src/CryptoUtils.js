@@ -202,10 +202,10 @@ export const deriveKeys = async(ownerCode, n) => {
   }
 }
 
-export async function deriveECDHKeyKWForEnryptAndDecrypt(publicKey, privateKey) { 
+export async function ECDHDeriveEncrypt(privateKey, publicKey) { 
   return window.crypto.subtle.deriveKey(
     {
-      name: "ECDH",
+      name: "ECDH",     
       public: publicKey,
     },
     privateKey,
@@ -218,7 +218,7 @@ export async function deriveECDHKeyKWForEnryptAndDecrypt(publicKey, privateKey) 
   );
 }
 
-export async function deriveECDHKeyKWForSignAndVerify(publicKey, privateKey) { 
+export async function ECDHDeriveSign(privateKey, publicKey) { 
   return window.crypto.subtle.deriveKey(
     {
       name: "ECDH",
