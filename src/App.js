@@ -229,6 +229,7 @@ const register = async() => {
    
     let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
+    console.log(await exportCryptoKeyToBytes(derivedECDHEcryptKey));
    
     let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
