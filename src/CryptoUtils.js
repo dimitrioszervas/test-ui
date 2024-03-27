@@ -23,16 +23,6 @@ const importRawHKDFKeyForDerivingKey = async (keyData) => {
   );
 };
 
-export const importRawECDHKeyForEncryptAndDecrypt = async (keyData) => {
-  return window.crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["encrypt", "decrypt"]
-  );
-};
-
 export const importECDHPublicKey = async (publicKey) => {
   // import raw public key (uncompressed format)
   let importedPublicKey = await window.crypto.subtle.importKey(
@@ -202,24 +192,63 @@ export const deriveKeys = async(ownerCode, n) => {
   }
 }
 
+export async function importRawAESGCMEcryptAndDecryptKey(keyData) {
+  const importedKey = await window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { 
+       name: "AES-GCM", 
+        length: 256
+    },
+    true,
+    ["encrypt", "decrypt"]
+  );
+
+  return importedKey;
+} 
+
 export async function ECDHDeriveEncrypt(privateKey, publicKey) { 
-  return window.crypto.subtle.deriveKey(
+  const derivedKey = await window.crypto.subtle.deriveKey(
     {
-      name: "ECDH",     
+      name: "ECDH",       
       public: publicKey,
     },
     privateKey,
     {
-      name: "AES-GCM",
+      name: "AES-GCM",      
       length: 256,
     },
     true,
     ["encrypt", "decrypt"],
   );
+  
+  const rawKey = await exportCryptoKeyToRaw(derivedKey);
+
+  const hashed = await window.crypto.subtle.digest('SHA-256', rawKey.buffer);
+
+  const importedKey = await importRawAESGCMEcryptAndDecryptKey(hashed);
+
+  return await exportCryptoKeyToRaw(importedKey);
+}
+
+export async function importHMACSignAndVerifyKey(keyData) {
+  const importedKey = await window.crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { 
+      name: "HMAC", 
+      hash: "SHA-256",
+      length: 256,
+    },
+    true,
+    ["sign", "verify"]
+  );
+
+  return importedKey;
 }
 
 export async function ECDHDeriveSign(privateKey, publicKey) { 
-  return window.crypto.subtle.deriveKey(
+  const derivedKey = await window.crypto.subtle.deriveKey(
     {
       name: "ECDH",
       public: publicKey,
@@ -233,9 +262,17 @@ export async function ECDHDeriveSign(privateKey, publicKey) {
     true,
     ["sign", "verify"],
   );
+ 
+  const rawKey = await exportCryptoKeyToRaw(derivedKey);
+
+  const hashed = await window.crypto.subtle.digest('SHA-256', rawKey.buffer);
+
+  const importedKey = await importHMACSignAndVerifyKey(hashed);
+
+  return await exportCryptoKeyToRaw(importedKey);
 }
 
-export async function generateAesKW256KeyForWrapAndUnwrap() {
+export async function generateAesKW256BitsKeyForWrapAndUnwrap() {
   let key = await window.crypto.subtle.generateKey(
     {
       name: "AES-KW",
