@@ -33,18 +33,16 @@ export const importRawECDHEncryptDecryptKey = async (keyData) => {
   );
 };
 
-export const importSpkiECDHEncryptDecryptKey = async (publicKeyData) => {
-  return window.crypto.subtle.importKey(
-    "spki",
-    publicKeyData,
-    {
-      name: "ECDH",
-      namedCurve: "P-256",
-      hash: "SHA-256",
-    },
-    true,
-    ["encrypt", "decrypt"],
-  );
+export const importECDHPublicKey = async (publicKey) => {
+  // import raw public key (uncompressed format)
+  let importedPublicKey = await window.crypto.subtle.importKey(
+    "raw", 
+    publicKey, // valid raw public key in uncompressed format
+    { name: "ECDH", namedCurve: "P-256" },
+    false,                          
+    [] // empty list
+  ); 
+  return importedPublicKey;
 };
 
 export const importRawECDHSignVerifyKey = async (keyData) => {
@@ -56,20 +54,6 @@ export const importRawECDHSignVerifyKey = async (keyData) => {
     ["sign", "verify"]
   );
 };
-
-export const importSpkiECDHSignVerifyKey = async (publicKeyData) => {
-  return window.crypto.subtle.importKey(
-    "spki",
-    publicKeyData,   
-    { 
-      name: "ECDH", 
-      namedCurve: "P-256", 
-      hash: "SHA-256" 
-    },
-    true,   
-    ["sign", "verify"]
-  );
-}
 
 // Function to import a Jwk HKDF Key for deriving keys 
 export const importJwkHKDFDeriveKey = async (keyData) => {

@@ -12,8 +12,7 @@ import { deriveKeys,
          exportCryptoKeyToJwk,
          importRawECDHEncryptDecryptKey,
          importRawECDHSignVerifyKey,
-         importSpkiECDHEncryptDecryptKey,
-         importSpkiECDHSignVerifyKey
+         importECDHPublicKey,       
         } from "./CryptoUtils";
 
 import { exportCryptoKeyToRaw as exportCryptoKeyToRaw } from "./CryptoUtils";
@@ -217,29 +216,29 @@ const register = async() => {
   };
 
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
-    
+  console.log("response: ", response);
+
   const SE_PUB = response.SE_PUB;
 
+  console.log("response.SE_PUB: ", SE_PUB);
+  
   let LOGIN_ENCRYPTS = [];
   let LOGIN_SIGNS = [];
   for (let i = 0; i <= numServers; i++) {
-    
-    const SE_PUB_ENCRYPT = await importSpkiECDHEncryptDecryptKey(new Uint8Array(SE_PUB[i]).buffer);
-    /*
-    const SE_PUB_SIGNS = await importRawECDHSignVerifyPublicKey(new Uint8Array(SE_PUB[i]).buffer);
-
-    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(SE_PUB_ENCRYPT, DE.privateKey);
+    const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[i]).buffer);
+   
+    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
-    
-    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(SE_PUB_SIGNS, DE.privateKey);
+   
+    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
-    */ 
   }
+
   await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
   await storeLOGIN_SIGNS(LOGIN_SIGNS);
 
   await storeSE_PUB(SE_PUB); 
-
+  
   // create SECRET + derive KEY for invite.id, which can be used 
   // for the tansaction session after successful login
   const SECRET = await deriveKeyPBKDF2(deviceCode);
@@ -257,6 +256,7 @@ const register = async() => {
 
     wENCRYPTS.push(wENCRYPT);
     wSIGNS.push(wSIGN);
+    
   } 
   
   await storeWENCRYPTS(wENCRYPTS);
@@ -308,7 +308,6 @@ const login = async() => {
   let response = await encryptDataAndSendtoServer(LOGIN_ENCRYPTS, LOGIN_SIGNS, deviceID, LOGIN_URL, numServers, loginTransanction);
   console.log("Response: ", response); 
 
-  /*
   const wTOKEN = new Uint8Array(response.wTOKEN);
   const SE_PUB = response.SE_PUB;
 
@@ -322,7 +321,7 @@ const login = async() => {
   // unwrap wSECRET with TOKEN
   const wSECRET = await getStoredWSECRET();
   //const SECRET = await urwrapKeyWithKeyAesKW(wSECRET, )
-  */
+  
 } 
 
 function App() {  

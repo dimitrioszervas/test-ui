@@ -153,8 +153,7 @@ export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint,
         console.error("Error sending data to backend:", error);
       });
            
-      CBOR = cbor.decode(base64ToAarrayBuffer(responseData)); 
-      console.log(CBOR);   
+      CBOR = await cbor.decode(base64ToAarrayBuffer(responseData));      
 
       return CBOR;
     
