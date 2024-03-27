@@ -1,17 +1,17 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import { deriveKeys,
-         deriveECDHKeyKWForEnryptDecrypt,
-         deriveECDHKeyKWForSignVerify, 
-         generateAesKWKey, 
-         deriveKeyPBKDF2, 
+         deriveECDHKeyKWForEnryptAndDecrypt,
+         deriveECDHKeyKWForSignAndVerify, 
+         generateAesKW256KeyForWrapAndUnwrap, 
+         derivePBKDF2Key256ForWrapAndUnwrap, 
          wrapKeyWithKeyAesKW, 
          urwrapKeyWithKeyAesKW,
          generateECDSAKeyPair, 
          generateECDHKeyPair,
          exportCryptoKeyToBytes,     
          exportCryptoKeyToJwk,
-         importRawECDHEncryptDecryptKey,
-         importRawECDHSignVerifyKey,
+         importRawECDHKeyForEncryptAndDecrypt,
+         importRawECDHKeyForSignAndVerify,
          importECDHPublicKey,       
         } from "./CryptoUtils";
 
@@ -176,15 +176,15 @@ const register = async() => {
   const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
  
   // create TOKEN + NONCE as 256 bits keys
-  const TOKEN = await generateAesKWKey(); 
-  const NONCE = await generateAesKWKey();
+  const TOKEN = await generateAesKW256KeyForWrapAndUnwrap(); 
+  const NONCE = await generateAesKW256KeyForWrapAndUnwrap();
   const binNONCE = await exportCryptoKeyToBytes(NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
   const PASSWORD = MY_PASSWORD;
   
   // derive PASSKEY FROM PASSWORD using PBKDF2
-  const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
+  const PASSKEY = await derivePBKDF2Key256ForWrapAndUnwrap(PASSWORD);
 
   // wTOKEN = wrap TOKEN with PASSKEY using AES-KW
   const wTOKEN = await wrapKeyWithKeyAesKW(TOKEN, PASSKEY);
@@ -227,12 +227,13 @@ const register = async() => {
   for (let i = 0; i <= numServers; i++) {
     const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[i]).buffer);
    
-    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptDecrypt(cryptoKeySE_PUB, DE.privateKey);
+    let derivedECDHEcryptKey = await deriveECDHKeyKWForEnryptAndDecrypt(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_ENCRYPTS.push(derivedECDHEcryptKey);//await exportCryptoKeyToBytes(derivedECDHEcryptKey));
-    console.log(await exportCryptoKeyToBytes(derivedECDHEcryptKey));
+    console.log("derivedECDHEcryptKey: ", await exportCryptoKeyToBytes(derivedECDHEcryptKey));
    
-    let derivedECDHSignKey = await deriveECDHKeyKWForSignVerify(cryptoKeySE_PUB, DE.privateKey);
+    let derivedECDHSignKey = await deriveECDHKeyKWForSignAndVerify(cryptoKeySE_PUB, DE.privateKey);
     LOGIN_SIGNS.push(derivedECDHSignKey);//await exportCryptoKeyToBytes(derivedECDHSignKey));
+    console.log("derivedECDHSignKey: ", await exportCryptoKeyToBytes(derivedECDHSignKey));
   }
 
   await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
@@ -242,7 +243,7 @@ const register = async() => {
   
   // create SECRET + derive KEY for invite.id, which can be used 
   // for the tansaction session after successful login
-  const SECRET = await deriveKeyPBKDF2(deviceCode);
+  const SECRET = await derivePBKDF2Key256ForWrapAndUnwrap(deviceCode);
 
   // store wSECRET = SECRET wrap by TOKEN
   const wSECRET = await wrapKeyWithKeyAesKW(SECRET, TOKEN);
@@ -270,7 +271,7 @@ const login = async() => {
   const numServers = NUM_SERVERS;
   
   // create NONCE
-  const NONCE = await generateAesKWKey();
+  const NONCE = await generateAesKW256KeyForWrapAndUnwrap();
   const binNONCE = await exportCryptoKeyToBytes(NONCE);
 
   // DS = create ECDSA key pair
@@ -314,7 +315,7 @@ const login = async() => {
 
   //  get PASSWORD
   const PASSWORD = MY_PASSWORD;
-  const PASSKEY = await deriveKeyPBKDF2(PASSWORD);
+  const PASSKEY = await derivePBKDF2Key256ForWrapAndUnwrap(PASSWORD);
 
   // unwrap wTOKEN with PASSWORD 
   const TOKEN = await urwrapKeyWithKeyAesKW(wTOKEN, PASSKEY);

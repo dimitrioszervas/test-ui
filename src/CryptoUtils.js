@@ -2,7 +2,7 @@
 const textToBytes = (text) => new TextEncoder().encode(text);
 
 // Function to import a Raw HKDF Key for deriving keys or bits 
-const importRawHKDFDeriveKeyDeriveBits = async (keyData) => {
+const importRawHKDFKeyForDerivingKeyAndBits = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
     keyData,
@@ -13,7 +13,7 @@ const importRawHKDFDeriveKeyDeriveBits = async (keyData) => {
 };
 
 // Function to import a Raw HKDF Key for deriving keys
-const importRawHKDFDeriveKey = async (keyData) => {
+const importRawHKDFKeyForDerivingKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     'raw',
     keyData,
@@ -23,7 +23,7 @@ const importRawHKDFDeriveKey = async (keyData) => {
   );
 };
 
-export const importRawECDHEncryptDecryptKey = async (keyData) => {
+export const importRawECDHKeyForEncryptAndDecrypt = async (keyData) => {
   return window.crypto.subtle.importKey(
     "raw",
     keyData,
@@ -45,7 +45,7 @@ export const importECDHPublicKey = async (publicKey) => {
   return importedPublicKey;
 };
 
-export const importRawECDHSignVerifyKey = async (keyData) => {
+export const importRawECDHKeyForSignAndVerify = async (keyData) => {
   return window.crypto.subtle.importKey(
     "raw",
     keyData,
@@ -56,7 +56,7 @@ export const importRawECDHSignVerifyKey = async (keyData) => {
 };
 
 // Function to import a Jwk HKDF Key for deriving keys 
-export const importJwkHKDFDeriveKey = async (keyData) => {
+export const importJwkHKDFKeyForDerivingKey = async (keyData) => {
   return window.crypto.subtle.importKey(
     'jwk',
     keyData,
@@ -81,7 +81,7 @@ const deriveHKDFBits = async (secretKey, salt, infoText, bits) => {
 };
 
 export const deriveID = async (code)=> {
-  let key = await importRawHKDFDeriveKeyDeriveBits(textToBytes(code)); 
+  let key = await importRawHKDFKeyForDerivingKeyAndBits(textToBytes(code)); 
   const ab = await deriveHKDFBits(key, textToBytes(""), "id", 64);
   return new Uint8Array(ab);
 }
@@ -168,7 +168,7 @@ export const deriveKeys = async(ownerCode, n) => {
     console.log("secret: ", secretString);
 
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
-    let secret = await importRawHKDFDeriveKeyDeriveBits(textToBytes(secretString));
+    let secret = await importRawHKDFKeyForDerivingKeyAndBits(textToBytes(secretString));
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
@@ -184,12 +184,12 @@ export const deriveKeys = async(ownerCode, n) => {
     // Derive sign Key from secret      
     const signAB = await deriveHKDFBits(secret, salt, "sign", 256);
     console.log("sign: ", signAB);  
-    let sign = await importRawHKDFDeriveKey(signAB);
+    let sign = await importRawHKDFKeyForDerivingKey(signAB);
 
     // Derive encrypt Key from secret     
     const encryptAB = await deriveHKDFBits(secret, salt, "encrypt", 256);
     console.log("encrypt: ",  encryptAB);  
-    let encrypt = await importRawHKDFDeriveKey(encryptAB);
+    let encrypt = await importRawHKDFKeyForDerivingKey(encryptAB);
       
     const encrypts = await generateNKeys(n, salt, "encrypt", encrypt);      
     const signs = await generateNKeys(n, salt, "sign", sign);  
@@ -202,7 +202,7 @@ export const deriveKeys = async(ownerCode, n) => {
   }
 }
 
-export async function deriveECDHKeyKWForEnryptDecrypt(publicKey, privateKey) { 
+export async function deriveECDHKeyKWForEnryptAndDecrypt(publicKey, privateKey) { 
   return window.crypto.subtle.deriveKey(
     {
       name: "ECDH",
@@ -218,7 +218,7 @@ export async function deriveECDHKeyKWForEnryptDecrypt(publicKey, privateKey) {
   );
 }
 
-export async function deriveECDHKeyKWForSignVerify(publicKey, privateKey) { 
+export async function deriveECDHKeyKWForSignAndVerify(publicKey, privateKey) { 
   return window.crypto.subtle.deriveKey(
     {
       name: "ECDH",
@@ -235,7 +235,7 @@ export async function deriveECDHKeyKWForSignVerify(publicKey, privateKey) {
   );
 }
 
-export async function generateAesKWKey() {
+export async function generateAesKW256KeyForWrapAndUnwrap() {
   let key = await window.crypto.subtle.generateKey(
     {
       name: "AES-KW",
@@ -248,7 +248,7 @@ export async function generateAesKWKey() {
   return key;
 }
 
-async function importPBKDF2Key(text) {  
+async function importPBKDF2KeyForDerivingKeyAndBits(text) {  
   const enc = new TextEncoder();
   return window.crypto.subtle.importKey(
     "raw",
@@ -259,8 +259,8 @@ async function importPBKDF2Key(text) {
   );
 }
 
-export async function deriveKeyPBKDF2(text) {
-  const keyMaterial = await importPBKDF2Key(text);
+export async function derivePBKDF2Key256ForWrapAndUnwrap(text) {
+  const keyMaterial = await importPBKDF2KeyForDerivingKeyAndBits(text);
   return window.crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
