@@ -11,7 +11,10 @@ import { deriveKeys,
          importRawAESGCMEcryptAndDecryptKey,
          importHMACSignAndVerifyKey,
          urwrapKeyWithKeyAesKWForEncryptAndDecrypt,
-         urwrapKeyWithKeyAesKWForSignAndVerify       
+         urwrapKeyWithKeyAesKWForSignAndVerify,
+         importECDHPublicKey,
+         ECDHDeriveEncrypt,
+         ECDHDeriveSign       
         } from "./CryptoUtils";
 
 import './App.css';
@@ -201,15 +204,15 @@ const createNewSecretAndWKeys = async(numServers, deviceCode) => {
   // store wSIGNS = SIGNS wrap by NONCE  
   let wSIGNS = [];
   for (let n = 0; n < SIGNS.length; n++) {   
-    const wSIGN = await wrapKeyWithKeyAesKW(SIGNS[n], NONCE);   
+    const wSIGN = await wrapKeyWithKeyAesKW(SIGNS[n], NONCE);
     wSIGNS.push(wSIGN);    
   }  
   await storeWSIGNS(wSIGNS);
 
   // store wENCRYPTS = ENCRYPTS wrap by NONCE
   let wENCRYPTS = [];
-  for (let i = 0; i < ENCRYPTS.length; i++) {
-    const wENCRYPT = await wrapKeyWithKeyAesKW(ENCRYPTS[i], NONCE);   
+  for (let n = 0; n < ENCRYPTS.length; n++) {
+    const wENCRYPT = await wrapKeyWithKeyAesKW(ENCRYPTS[n], NONCE);   
     wENCRYPTS.push(wENCRYPT);
   } 
   await storeWENCRYPTS(wENCRYPTS);
@@ -296,19 +299,14 @@ const rekey  = async() => {
   // unrwap wSIGNS with oldNONCE
   let SIGNS = [];
   for (let n = 0; n < wSIGNS.length; n++) {
-    const rawSIGN = await urwrapKeyWithKeyAesKWForSignAndVerify(wSIGNS[n], oldNONCE);
-    console.log("rawSIGN: ", rawSIGN);
-    //console.log("wSIGNS[n]: ", wSIGNS[n]);
-    const SIGN = await importHMACSignAndVerifyKey(rawSIGN);
+    const SIGN = await urwrapKeyWithKeyAesKWForSignAndVerify(wSIGNS[n], oldNONCE);
     SIGNS.push(SIGN);
   }
  
   // unrwap wENCRYPTS with oldNONCE
   let ENCRYPTS = [];
   for (let n = 0; n < wENCRYPTS.length; n++) {
-    const rawENCRYPT = await urwrapKeyWithKeyAesKWForEncryptAndDecrypt(wENCRYPTS[n], oldNONCE);
-    console.log("rawENCRYPT:", rawENCRYPT);    
-    const ENCRYPT = await importRawAESGCMEcryptAndDecryptKey(rawENCRYPT);
+    const ENCRYPT = await urwrapKeyWithKeyAesKWForEncryptAndDecrypt(wENCRYPTS[n], oldNONCE);
     ENCRYPTS.push(ENCRYPT);
   }
 
@@ -339,7 +337,7 @@ const rekey  = async() => {
     wENCRYPTS, 
     NONCE: rawNONCE
   };
-/*
+
   let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, REKEY_URL, numServers, rekeyTransanction);
   
   const SE_PUB = response.SE_PUB;
@@ -363,8 +361,7 @@ const rekey  = async() => {
   await storeLOGIN_SIGNS(LOGIN_SIGNS);
 
   const deviceCode = INVITE_CODE; 
-  await createNewSecretAndWKeys(numServers, deviceCode);
-  */
+  await createNewSecretAndWKeys(numServers, deviceCode);  
 }
 
 const login = async() => {

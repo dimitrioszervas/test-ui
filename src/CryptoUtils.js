@@ -319,11 +319,11 @@ export async function exportCryptoKeyToRaw(key) {
 
 export async function wrapKeyWithKeyAesKW(keyToWrap, wrappingKey) {
   const keyAB = await window.crypto.subtle.wrapKey("raw", keyToWrap, wrappingKey, "AES-KW");
-  return await new Uint8Array(keyAB);
+  return new Uint8Array(keyAB);
 }
 
 export async function urwrapKeyWithKeyAesKWForWarpAndUnwrap(keyToUnwrap, wrappingKey) {
-  const keyAB = await window.crypto.subtle.unwrapKey(
+  return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
     "AES-KW", // algorithm identifier for key encryption key
@@ -331,11 +331,10 @@ export async function urwrapKeyWithKeyAesKWForWarpAndUnwrap(keyToUnwrap, wrappin
     true, // extractability of key to unwrap
     ["wrapKey", "unwrapKey"], // key usages for key to unwrap
   );
-  return new Uint8Array(keyAB);
 }
 
 export async function urwrapKeyWithKeyAesKWForSignAndVerify(keyToUnwrap, wrappingKey) {
-  const keyAB = await window.crypto.subtle.unwrapKey(
+  return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
     "AES-KW", // algorithm identifier for key encryption key
@@ -347,19 +346,17 @@ export async function urwrapKeyWithKeyAesKWForSignAndVerify(keyToUnwrap, wrappin
     true, // extractability of key to unwrap
     ["sign", "verify"], // key usages for key to unwrap
   );
-  return new Uint8Array(keyAB);
 }
 
 export async function urwrapKeyWithKeyAesKWForEncryptAndDecrypt(keyToUnwrap, wrappingKey) {
-  const keyAB = await window.crypto.subtle.unwrapKey(
+  return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
     "AES-KW", // algorithm identifier for key encryption key
     "AES-GCM", // algorithm identifier for key to unwrap
     true, // extractability of key to unwrap
     ["encrypt", "decrypt"], // key usages for key to unwrap
-  );
-  return new Uint8Array(keyAB);
+  );  
 }
 
 export async function generateECDSAKeyPair() {
