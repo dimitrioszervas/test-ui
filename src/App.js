@@ -3,18 +3,20 @@ import { deriveKeys,
          generateAesKW256BitsKeyForWrapAndUnwrap, 
          derivePBKDF2Key256ForWrapAndUnwrap, 
          wrapKeyWithKeyAesKW, 
-         urwrapKeyWithKeyAesKWForWarpAndUnwrap,
          generateECDSAKeyPair, 
          generateECDHKeyPair,           
          exportCryptoKeyToJwk,
          exportCryptoKeyToRaw,
          importRawAESGCMEcryptAndDecryptKey,
          importHMACSignAndVerifyKey,
-         urwrapKeyWithKeyAesKWForEncryptAndDecrypt,
-         urwrapKeyWithKeyAesKWForSignAndVerify,
+         unwrapKeyWithKeyAesKWForWarpAndUnwrap,
+         unwrapSecretWithToken,
+         unwrapDecrypt,
+         unwrapSign,
          importECDHPublicKey,
          ECDHDeriveEncrypt,
-         ECDHDeriveSign       
+         ECDHDeriveSign,
+
         } from "./CryptoUtils";
 
 import './App.css';
@@ -299,14 +301,14 @@ const rekey  = async() => {
   // unrwap wSIGNS with oldNONCE
   let SIGNS = [];
   for (let n = 0; n < wSIGNS.length; n++) {
-    const SIGN = await urwrapKeyWithKeyAesKWForSignAndVerify(wSIGNS[n], oldNONCE);
+    const SIGN = await unwrapSign(wSIGNS[n], oldNONCE);
     SIGNS.push(SIGN);
   }
  
   // unrwap wENCRYPTS with oldNONCE
   let ENCRYPTS = [];
   for (let n = 0; n < wENCRYPTS.length; n++) {
-    const ENCRYPT = await urwrapKeyWithKeyAesKWForEncryptAndDecrypt(wENCRYPTS[n], oldNONCE);
+    const ENCRYPT = await unwrapDecrypt(wENCRYPTS[n], oldNONCE);
     ENCRYPTS.push(ENCRYPT);
   }
 
@@ -369,39 +371,23 @@ const login = async() => {
   // We have 3 servers 
   const numServers = NUM_SERVERS;
   
-  // create NONCE
-  const NONCE = await generateAesKW256BitsKeyForWrapAndUnwrap();
-  const binNONCE = await exportCryptoKeyToRaw(NONCE);
-
-  // DS = create ECDSA key pair
-  const DS = await generateECDSAKeyPair();
-
-  // DE = create ECDH key pair
-  const DE = await generateECDHKeyPair();
-
-  // store DS.PRIV +  DE.PRIV
-  const DS_PRIV = await exportCryptoKeyToJwk(DS.privateKey);
-  const DE_PRIV = await exportCryptoKeyToJwk(DE.privateKey);
-  await storeDS_PRIV(DS_PRIV);
-  await storeDE_PRIV(DE_PRIV);
-
-  const DS_PUB = await exportCryptoKeyToRaw(DS.publicKey);
-  const DE_PUB = await exportCryptoKeyToRaw(DE.publicKey);
-    
+  // get LOGINS[] for device from storage
+  // SIGNS[] = ENCRYPTS[] = LOGINS[] for login transaction processing
   const deviceID = await getStoredDeviceID();
   const LOGIN_ENCRYPTS = await getStoredLOGIN_ENCRYPTS();
   const LOGIN_SIGNS = await getStoredLOGIN_SIGNS();
+  const NONCE = await getStoredNONCEFromMem();
+  const rawNONCE = await exportCryptoKeyToRaw(NONCE);
 
+  // send wSIGNS + wENCRYPTS as login transaction data
   const wENCRYPTS = await getStoredWENCRYPTS();
   const wSIGNS = await getStoredWSIGNS();
 
   // send DS.PUB + DE.PUB + wKEYS + NONCE
-  let loginTransanction = {   
-    DS_PUB,
-    DE_PUB,           
+  let loginTransanction = {
     wENCRYPTS,
     wSIGNS,  
-    NONCE: binNONCE
+    NONCE: rawNONCE
   };
 
   console.log("Sent Data: ", loginTransanction);
@@ -409,20 +395,23 @@ const login = async() => {
   let response = await encryptDataAndSendtoServer(LOGIN_ENCRYPTS, LOGIN_SIGNS, deviceID, LOGIN_URL, numServers, loginTransanction);
   console.log("Response: ", response); 
 
-  const wTOKEN = new Uint8Array(response.wTOKEN);
-  const SE_PUB = response.SE_PUB;
+  const wTOKEN = new Uint8Array(response.wTOKEN);  
 
-  //  get PASSWORD
+  //  get PASSWORD, wSECRET
   const PASSWORD = MY_PASSWORD;
   const PASSKEY = await derivePBKDF2Key256ForWrapAndUnwrap(PASSWORD);
-
-  // unwrap wTOKEN with PASSWORD 
-  const TOKEN = await urwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
-
-  // unwrap wSECRET with TOKEN
   const wSECRET = await getStoredWSECRET();
-  //const SECRET = await urwrapKeyWithKeyAesKW(wSECRET, )
+
+  // TOKEN = unwrap wTOKEN with PASSWORD  
+  const TOKEN = await unwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
+
+  // SECRET = unwrap wSECRET with TOKEN
+  const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN); 
   
+  // derive SIGNS + ENCRYPTS from SECRET + store in session memory
+
+  // if rekeyTime + rekeyPeriod > timeNow then call rekey(TOKEN)
+
 } 
 
 function App() {  

@@ -322,18 +322,29 @@ export async function wrapKeyWithKeyAesKW(keyToWrap, wrappingKey) {
   return new Uint8Array(keyAB);
 }
 
-export async function urwrapKeyWithKeyAesKWForWarpAndUnwrap(keyToUnwrap, wrappingKey) {
+export async function unwrapKeyWithKeyAesKWForWarpAndUnwrap(keyToUnwrap, wrappingKey) {
   return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
-    "AES-KW", // algorithm identifier for key encryption key
+    "AES-KW",  // algorithm identifier for key encryption key
     "AES-GCM", // algorithm identifier for key to unwrap
     true, // extractability of key to unwrap
     ["wrapKey", "unwrapKey"], // key usages for key to unwrap
   );
 }
 
-export async function urwrapKeyWithKeyAesKWForSignAndVerify(keyToUnwrap, wrappingKey) {
+export async function unwrapSecretWithToken(wSECRET, TOKEN) {
+  return await window.crypto.subtle.unwrapKey(
+    "raw", 
+    wSECRET, TOKEN,  
+    "AES-KW", // algorithm identifier for key encryption key
+    "AES-KW", // algorithm identifier for key to unwrap
+    true,     // extractability of key to unwrap
+    ["wrapKey", "unwrapKey"], // key usages for key to unwrap
+  );
+}
+
+export async function unwrapSign(keyToUnwrap, wrappingKey) {
   return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
@@ -348,7 +359,7 @@ export async function urwrapKeyWithKeyAesKWForSignAndVerify(keyToUnwrap, wrappin
   );
 }
 
-export async function urwrapKeyWithKeyAesKWForEncryptAndDecrypt(keyToUnwrap, wrappingKey) {
+export async function unwrapDecrypt(keyToUnwrap, wrappingKey) {
   return await window.crypto.subtle.unwrapKey(
     "raw", 
     keyToUnwrap, wrappingKey,  
