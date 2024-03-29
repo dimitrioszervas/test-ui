@@ -16,6 +16,7 @@ import { deriveKeys,
          importECDHPublicKey,
          ECDHDeriveEncrypt,
          ECDHDeriveSign,
+         deriveSignsAndEncryptsFromSecret
 
         } from "./CryptoUtils";
 
@@ -408,10 +409,24 @@ const login = async() => {
   // SECRET = unwrap wSECRET with TOKEN
   const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN); 
   
-  // derive SIGNS + ENCRYPTS from SECRET + store in session memory
+  // Derive SIGNS + ENCRYPTS from SECRET and store them
+  const { signs, encrypts } = await deriveSignsAndEncryptsFromSecret(SECRET, NUM_SERVERS);
 
-  // if rekeyTime + rekeyPeriod > timeNow then call rekey(TOKEN)
+  // Convert the CryptoKeys to a storable format before saving
+  const exportedSigns = await Promise.all(signs.map(async (sign) => await exportCryptoKeyToRaw(sign)));
+  const exportedEncrypts = await Promise.all(encrypts.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
 
+  // Store 'signs' and 'encrypts' in session memory
+  sessionStorage.setItem('signs', JSON.stringify(exportedSigns));
+  sessionStorage.setItem('encrypts', JSON.stringify(exportedEncrypts));
+
+  // Check if rekey is needed
+  const REKEY_PERIOD = 1000 * 60 * 60 * 24; // 24 hours for example
+  const timeNow = Date.now();
+  const rekeyTime = await getReleyTime();
+  if (rekeyTime + REKEY_PERIOD <= timeNow) {
+    await rekey(TOKEN); // Call rekey with the TOKEN
+  }
 } 
 
 function App() {  
