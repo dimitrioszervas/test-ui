@@ -336,13 +336,30 @@ export async function unwrapKeyWithKeyAesKWForWarpAndUnwrap(keyToUnwrap, wrappin
 export async function unwrapSecretWithToken(wSECRET, TOKEN) {
   return await window.crypto.subtle.unwrapKey(
     "raw", 
+    wSECRET, 
+    TOKEN,
+    {  
+      name: "AES-KW" // algorithm identifier for key encryption key
+    },
+    {  
+      name: "AES-KW", // algorithm identifier for key to unwrap
+      length: 256 // Assuming the key length is 256 bits, adjust if necessary
+    },
+    true,     // extractability of key to unwrap
+    ["wrapKey", "unwrapKey"] // key usages for key to unwrap
+  );
+}
+
+{/*export async function unwrapSecretWithToken(wSECRET, TOKEN) {
+  return await window.crypto.subtle.unwrapKey(
+    "raw", 
     wSECRET, TOKEN,  
     "AES-KW", // algorithm identifier for key encryption key
     "AES-KW", // algorithm identifier for key to unwrap
     true,     // extractability of key to unwrap
     ["wrapKey", "unwrapKey"], // key usages for key to unwrap
   );
-}
+}*/}
 
 export async function unwrapSign(keyToUnwrap, wrappingKey) {
   return await window.crypto.subtle.unwrapKey(

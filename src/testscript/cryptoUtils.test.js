@@ -46,4 +46,43 @@ describe('CryptoUtils', () => {
       // Further assertions can be made based on the properties of the encryptedData
     });
   });
+
+  describe('unwrapSecretWithToken', () => {
+    it('should unwrap a secret key correctly', async () => {
+      // Generate a wrapping key (TOKEN) using AES-KW
+      const wrappingKey = await window.crypto.subtle.generateKey(
+        {
+          name: "AES-KW",
+          length: 256,
+        },
+        true, // whether the key is extractable (i.e., can be used in exportKey)
+        ["wrapKey", "unwrapKey"] // key usages
+      );
+
+      // Generate a secret key to wrap (this will be wSECRET after wrapping)
+      const secretKey = await window.crypto.subtle.generateKey(
+        {
+          name: "AES-GCM",
+          length: 256,
+        },
+        true, // extractable
+        ["encrypt", "decrypt"]
+      );
+
+      // Wrap the secret key
+      const wrappedSecretKey = await window.crypto.subtle.wrapKey(
+        "raw", // format of the key to be wrapped
+        secretKey, // the key you want to wrap, which is secretKey
+        wrappingKey, // the wrapping key, which is wrappingKey
+        {name: "AES-KW"} // the wrapping algorithm
+      );
+
+      // Unwrap the secret key
+      const unwrappedKey = await CryptoUtils.unwrapSecretWithToken(wrappedSecretKey, wrappingKey);
+
+      expect(unwrappedKey).toBeDefined();
+      // Further assertions can be made based on the properties of the unwrappedKey
+      // For example, you might check if unwrappedKey can be used for encryption/decryption
+    });
+  });
 });
