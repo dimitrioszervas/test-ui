@@ -1,5 +1,7 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeys,         
+import { deriveKeysFromCode,  
+         deriveSignsAndEncryptsFromSecret, 
+         generateHKDFSecret,        
          generateAesKW256BitsKeyForWrapAndUnwrap, 
          derivePBKDF2Key256ForWrapAndUnwrap, 
          wrapKeyWithKeyAesKW, 
@@ -162,13 +164,13 @@ const invite = async() => {
   
   // derive device.id + device.SECRET + device.SIGNS + device.ENCRYPTS
   const numServers = NUM_SERVERS; 
-  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
+  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeysFromCode(deviceCode, numServers);
   
   // create invite.CODE for new user DEVICE
   const inviteCode = INVITE_CODE; 
    
   //  derive invite.id + invite.SECRET + invite.SIGNS + invite.ENCRYPTS
-  const [inviteENCRYPTS, inviteSIGNS, inviteID] = await deriveKeys(inviteCode, numServers);
+  const [inviteENCRYPTS, inviteSIGNS, inviteID] = await deriveKeysFromCode(inviteCode, numServers);
   
   // send invite.id + invite.SIGNS + invite.ENCRYPTS as invite transaction data...
 
@@ -198,10 +200,10 @@ const createNewSecretAndWKeys = async(numServers, deviceCode) => {
   const TOKEN = await getStoredTOKENFromMem();
 
   // create new SECRET
-  const SECRET = await derivePBKDF2Key256ForWrapAndUnwrap(deviceCode);
+  const SECRET = await generateHKDFSecret();
      
   // derive SIGNS[] + ENCRYPTS[]
-  const [ENCRYPTS, SIGNS, ] = await deriveKeys(deviceCode, numServers);
+  const [ENCRYPTS, SIGNS] = await deriveSignsAndEncryptsFromSecret(SECRET, numServers);
 
   // store wSIGNS = SIGNS wrap by NONCE  
   let wSIGNS = [];
@@ -220,8 +222,8 @@ const createNewSecretAndWKeys = async(numServers, deviceCode) => {
   await storeWENCRYPTS(wENCRYPTS);
 
   // store wSECRET = SECRET wrap by TOKEN
-  const wSECRET = await wrapKeyWithKeyAesKW(SECRET, TOKEN);
-  await storeWSECRET(wSECRET);
+  //const wSECRET = await wrapKeyWithKeyAesKW(SECRET, TOKEN);
+  //await storeWSECRET(wSECRET);
 }
 
 const register = async() => {
@@ -234,7 +236,7 @@ const register = async() => {
    
   // derive device.id + device.SECRET 
   // derive device.SIGNS + device.ENCRYPTS
-  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeys(deviceCode, numServers);
+  const [deviceENCRYPTS, deviceSIGNS, deviceID] = await deriveKeysFromCode(deviceCode, numServers);
  
   // store device.id  
   await storeDeviceID(deviceID); 
@@ -403,12 +405,31 @@ const login = async() => {
   const wSECRET = await getStoredWSECRET();
 
   // TOKEN = unwrap wTOKEN with PASSWORD  
-  const TOKEN = await unwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
+  //const TOKEN = await unwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
 
   // SECRET = unwrap wSECRET with TOKEN
-  const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN); 
+  //const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN); 
   
   // derive SIGNS + ENCRYPTS from SECRET + store in session memory
+  //const [ENCRYPTS, SIGNS, ] = await deriveKeys(deviceCode, numServers);
+  const TOKEN = await unwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
+  // SECRET = unwrap wSECRET with TOKEN
+  const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN);
+  // Derive SIGNS + ENCRYPTS from SECRET and store them
+  const { signs, encrypts } = await deriveSignsAndEncryptsFromSecret(SECRET, NUM_SERVERS);
+  // Convert the CryptoKeys to a storable format before saving
+  const exportedSigns = await Promise.all(signs.map(async (sign) => await exportCryptoKeyToRaw(sign)));
+  const exportedEncrypts = await Promise.all(encrypts.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
+  // Store 'signs' and 'encrypts' in session memory
+  sessionStorage.setItem('signs', JSON.stringify(exportedSigns));
+  sessionStorage.setItem('encrypts', JSON.stringify(exportedEncrypts));
+  // Check if rekey is needed
+  const REKEY_PERIOD = 1000 * 60 * 60 * 24; // 24 hours for example
+  const timeNow = Date.now();
+  const rekeyTime = await getReleyTime();
+  if (rekeyTime + REKEY_PERIOD <= timeNow) {
+    await rekey(TOKEN); // Call rekey with the TOKEN
+  }
 
   // if rekeyTime + rekeyPeriod > timeNow then call rekey(TOKEN)
 

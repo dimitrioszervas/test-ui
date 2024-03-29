@@ -146,19 +146,18 @@ export async function exportCryptoKeyToPKCS8(key) {
   return exportedKey;
 }
 
-export const deriveKeys = async(ownerCode, n) => {
+export const deriveKeysFromCode = async(ownerCode, n) => {
   try {
     const secretString = ownerCode;
-    let saltString  = "";
-
-    console.log("secret string: ", secretString); 
-     
-    let salt = textToBytes(saltString);
-
-    console.log("secret: ", secretString);
-
+   
     // generateKey cannot be used to create a key which will be used to drive other keys in future so using importKey function
     let secret = await importRawHKDFKeyForDerivingKeyAndBits(textToBytes(secretString));
+    console.log("secret or baseKey: ", secret);
+  
+    let saltString  = "";
+
+    let salt = textToBytes(saltString);
+
     console.log("secret or baseKey: ", secret);
   
     // Deriving bits for src, sign, and encrypt
@@ -312,6 +311,48 @@ export async function derivePBKDF2Key256ForWrapAndUnwrap(text) {
   );
 }
 
+export async function generateHKDFSecret() {
+
+  const keyData = window.crypto.getRandomValues(new Uint8Array(32)); 
+  
+  let key = await window.crypto.subtle.generateKey(
+    {
+      name: "HKDF",
+      length: 256,
+    },
+    true, //whether the key is extractable (i.e. can be used in exportKey)
+    ["deriveKey", "deriveBits"]
+  );
+ 
+ /*
+  const key = await window.crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HKDF' },
+    false,
+    ['deriveKey', 'deriveBits']
+  );
+
+  /*
+  let key = await window.crypto.subtle.generateKey(
+    {
+      name: "AES-KW",
+      length: 256,
+    },
+    true, //whether the key is extractable (i.e. can be used in exportKey)
+    ['deriveKey', 'deriveBits']
+  );
+ */
+
+  return key;
+} 
+
+/*
+export async function createNewSecret(deviceCode) {
+  return await importRawHKDFKeyForDerivingKeyAndBits(textToBytes(deviceCode));
+}
+*/
+
 export async function exportCryptoKeyToRaw(key) {
   const exportedKeyAB = await exportCryptoKeyToRawAB(key);
   return new Uint8Array(exportedKeyAB);
@@ -401,4 +442,50 @@ export async function generateECDHKeyPair () {
   return keyPair;
 }
 
+// Assuming the secret is derived from some initial key material and is suitable for use in key derivation
+// This function will derive sign and encrypt keys based on the provided secret
+export const deriveSignsAndEncryptsFromSecret = async (secret, n) => {
+ /*
+  // Use an appropriate salt for key derivation. This could be a fixed value or derived from some other data.
+  // Ensure the salt is appropriately chosen for your application's security requirements.
+  const salt = window.crypto.getRandomValues(new Uint8Array(16)); // Example: 16-byte random salt
+  // Derive sign keys
+  const signs = await generateNKeys(n, salt, "sign", secret);
+  // Derive encrypt keys
+  const encrypts = await generateNKeys(n, salt, "encrypt", secret);
+  // Convert derived keys to a format suitable for storage (e.g., raw or JWK format)
+  const exportedSigns = await Promise.all(signs.map(key => exportCryptoKeyToRaw(key)));
+  const exportedEncrypts = await Promise.all(encrypts.map(key => exportCryptoKeyToRaw(key)));
+  // Return the exported keys
+  return { exportedSigns, exportedEncrypts };
+  */
+   
+    let saltString  = "";
 
+    let salt = textToBytes(saltString);
+
+    // Deriving bits for src, sign, and encrypt
+    const srcAB = await deriveHKDFBits(secret, salt, "src", 64);
+    console.log(srcAB);
+  
+    let src = new Uint8Array(srcAB);
+
+    console.log("src: ", src);
+    
+    salt = src;
+  
+    // Derive sign Key from secret      
+    const signAB = await deriveHKDFBits(secret, salt, "sign", 256);
+    console.log("sign: ", signAB);  
+    let sign = await importRawHKDFKeyForDerivingKey(signAB);
+
+    // Derive encrypt Key from secret     
+    const encryptAB = await deriveHKDFBits(secret, salt, "encrypt", 256);
+    console.log("encrypt: ",  encryptAB);  
+    let encrypt = await importRawHKDFKeyForDerivingKey(encryptAB);
+      
+    const encrypts = await generateNKeys(n, salt, "encrypt", encrypt);      
+    const signs = await generateNKeys(n, salt, "sign", sign);  
+  
+    return [encrypts, signs];
+};
