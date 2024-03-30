@@ -3,7 +3,7 @@ import cbor from "cbor-js";
 
 import { calculateReedSolomonShards } from "./ReedSolomon";
 import { calculateNumberOfShardsPerServer } from "./ReedSolomon";
-import { encryptAesGCMShard } from "./CryptoUtils";
+import { encryptShard } from "./CryptoUtils";
 import { calculateHMAC } from "./CryptoUtils";
 
 /*
@@ -22,6 +22,10 @@ function base64ToAarrayBuffer(base64) {
 
 export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint, numSevers, transanctionData) => {
   try {
+
+    console.log("deviceENCRYPTS: ", ENCRYPTS);
+    console.log("deviceSIGNS: ", SIGNS);
+
     // Convert SRC to regular array
     const srcArray = new Uint8Array(SRC);//Array.from(new Uint8Array(SRC));
         
@@ -61,7 +65,7 @@ export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint,
     
     // get the Reed-Solomon shards for the transaction
     let transactionShards = calculateReedSolomonShards(finalCBORArray, numSevers);
-    let numTransShardsPerServer = calculateNumberOfShardsPerServer(transactionShards, numSevers);  
+    let numShardsPerServer = calculateNumberOfShardsPerServer(transactionShards, numSevers);  
 
     // END TRANSACTION REED-SOLOMON ///////////////////////////////////////////////////////////////// 
   
@@ -69,9 +73,8 @@ export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint,
     const encoder = new TextEncoder();
 
     // Calculate HMAC for each key in SIGNS[1...n] and add the first 16 bytes to CBOR
-    const hmacPromises = SIGNS.slice(1, numSevers).map(async (key) => {
+    const hmacPromises = SIGNS.slice(1, numSevers).map(async (key) => {    
       const algo = { name: "HMAC", hash: "SHA-256" };
-
       const signature = await window.crypto.subtle.sign(algo, key, encoder.encode(CBOR));
       return new Uint8Array(signature).slice(0, 16);
     });
@@ -104,12 +107,17 @@ export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint,
     // state 3 - end
 
     // state 4
-
+   
     // Encrypt each shard with the corresponding CryptoKey 
     // Create an array of encrypted shards   
     let encryptedTransanctionShards = [];   
-    for (let i = 0; i < transactionShards.length; i++) {    
-      const encryptedTransactionShard = await encryptAesGCMShard(transactionShards[i], ENCRYPTS[Math.trunc(i / numTransShardsPerServer) + 1], SRC);           
+    for (let i = 0; i < transactionShards.length; i++) { 
+
+      let encryptsIndex = Math.trunc(i / numShardsPerServer) + 1; 
+
+      const encryptedTransactionShard = 
+            await encryptShard(transactionShards[i], ENCRYPTS[encryptsIndex], SRC);
+
       encryptedTransanctionShards.push(encryptedTransactionShard);
     }
     
