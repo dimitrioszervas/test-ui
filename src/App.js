@@ -419,23 +419,18 @@ const login = async() => {
   const wSECRET = await getStoredWSECRET();
 
   // TOKEN = unwrap wTOKEN with PASSWORD  
-  //const TOKEN = await unwrapKeyWithKeyAesKWForWarpAndUnwrap(wTOKEN, PASSKEY);
-
-  // SECRET = unwrap wSECRET with TOKEN
-  //const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN); 
-  
-
-  // derive SIGNS + ENCRYPTS from SECRET + store in session memory
-  //const [ENCRYPTS, SIGNS, ] = await deriveKeys(deviceCode, numServers);
   const TOKEN = await unwrapKey(wTOKEN, PASSKEY);
+
   // SECRET = unwrap wSECRET with TOKEN
-  const SECRET = await unwrapSecretWithToken(wSECRET, TOKEN);
-  /*
-  // Derive SIGNS + ENCRYPTS from SECRET and store them
-  const { signs, encrypts } = await deriveSignsAndEncryptsFromSecret(SECRET, NUM_SERVERS);
+  const SECRET = await exportCryptoKeyToRaw(await unwrapSecretWithToken(wSECRET, TOKEN)); 
+  
+  // derive SIGNS + ENCRYPTS from SECRET + store in session memory  
+  const [ SIGNS, ENCRYPTS ] = await deriveSignsAndEncryptsFromSecret(SECRET, numServers);
+
   // Convert the CryptoKeys to a storable format before saving
-  const exportedSigns = await Promise.all(signs.map(async (sign) => await exportCryptoKeyToRaw(sign)));
-  const exportedEncrypts = await Promise.all(encrypts.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
+  const exportedSigns = await Promise.all(SIGNS.map(async (sign) => await exportCryptoKeyToRaw(sign)));
+  const exportedEncrypts = await Promise.all(ENCRYPTS.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
+  
   // Store 'signs' and 'encrypts' in session memory
   sessionStorage.setItem('signs', JSON.stringify(exportedSigns));
   sessionStorage.setItem('encrypts', JSON.stringify(exportedEncrypts));
@@ -444,9 +439,9 @@ const login = async() => {
   const timeNow = Date.now();
   const rekeyTime = await getReleyTime();
   if (rekeyTime + REKEY_PERIOD <= timeNow) {
-    await rekey(TOKEN); // Call rekey with the TOKEN
+    //await rekey(TOKEN); // Call rekey with the TOKEN
   }
-  */
+ 
 } 
 
 function App() {  
