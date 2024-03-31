@@ -1,7 +1,6 @@
 import { encryptDataAndSendtoServer } from "./protocol";
-import { deriveKeysFromCode,  
-         deriveSignsAndEncryptsFromSecret, 
-         generateRawKey,
+import {   
+         deriveSignsAndEncryptsFromSecret,
          generateAesKWKey,
          deriveRawID,
          deriveRawSecret, 
@@ -30,7 +29,8 @@ import { AES } from "crypto-js";
 const INVITE_URL = "https://localhost:7125/api/Transactions/Invite";
 const REGISTER_URL = "https://localhost:7125/api/Transactions/Register";
 const REKEY_URL = "https://localhost:7125/api/Transactions/Rekey";
-const LOGIN_URL = "https://localhost:7125/api/Transactions/Login"; 
+const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";
+const SESSION_URL = "https://localhost:7125/api/Transactions/Session"; 
 
 const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
@@ -49,6 +49,8 @@ let g_storedWSIGNS;
 let g_rekeyTime;
 let g_storedNONCE;
 let g_storedTOKEN;
+let g_storedSessionENCRYPTS;
+let g_storedSessionSIGNS;
 
 async function storeDeviceID(devideID) {
   g_storedDeviceID = devideID;
@@ -89,6 +91,15 @@ async function storeWSIGNS(wSIGNS) {
 async function getStoredDeviceID() {
   return g_storedDeviceID;
 }
+
+async function storeSessionENCRYPTS(ENCRYPTS) {
+  g_storedSessionENCRYPTS = ENCRYPTS;
+}
+
+async function storeSessionSIGNS(SIGNS) {
+  g_storedSessionSIGNS = SIGNS;
+}
+
 
 async function getStoredLOGIN_ENCRYPTS() {  
   let LOGIN_ENCRYPTS = [];
@@ -156,6 +167,27 @@ async function getStoredTOKENFromMem() {
   return g_storedTOKEN;
 }
 
+async function getStoredSessionENCRYPTS() { 
+  /* 
+  let ENCRYPTS = [];
+  for (let i = 0; i < g_storedSessionENCRYPTS.length; i++) {
+    let cryptoKey = await importAesGcmKey(g_storedSessionENCRYPTS[i]);
+    ENCRYPTS.push(cryptoKey);
+  }*/
+  return g_storedSessionENCRYPTS;
+}
+
+async function getStoredSessionSIGNS() { 
+  /*
+  let SIGNS = [];
+  for (let i = 0; i < g_storedSessionSIGNS.length; i++) {
+    let cryptoKey = await importHmacKey(g_storedSessionSIGNS[i]);
+    SIGNS.push(cryptoKey);
+  } */ 
+  return g_storedSessionSIGNS;
+}
+
+
 const invite = async() => {
    
   const numServers = NUM_SERVERS; 
@@ -193,14 +225,14 @@ const invite = async() => {
 
   // send invite.id + invite.SIGNS + invite.ENCRYPTS as invite transaction data... 
   // Compose transaction and send KEYS using OWN_KEYS
-  let inviteTransanction = {   
+  let inviteTransaction = {   
     inviteENCRYPTS: rawInviteENCRYPTS,
     inviteSIGNS: rawInviteSIGNS,
     inviteID 
   };
 
   // Send transaction to server
-  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, INVITE_URL, numServers, inviteTransanction);
+  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, INVITE_URL, numServers, inviteTransaction);
   console.log("Response: ", response);  
 }
 
@@ -286,13 +318,13 @@ const register = async() => {
   await storeDE_PRIV(DE_PRIV);  
 
   // send wTOKEN + NONCE + device.id as Register transaction data 
-  let registerTransanction = {
+  let registerTransaction = {
     wTOKEN, 
     NONCE: rawNONCE,
     deviceID 
   };
   
-  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransanction);
+  let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransaction);
   console.log("response: ", response);  
   await createNewSecretAndWKeys(numServers, inviteCode);
 } 
@@ -348,7 +380,7 @@ const rekey  = async() => {
   const DE_PUB = await exportCryptoKeyToRaw(DE.publicKey);
 
   // send DS.PUB + DE.PUB + wSIGNS + wENCRYPTS + NONCE  as Rekey transaction data 
-  let rekeyTransanction = {  
+  let rekeyTransaction = {  
     DS_PUB,
     DE_PUB, 
     wSIGNS,
@@ -356,7 +388,7 @@ const rekey  = async() => {
     NONCE: rawNONCE
   };
 
-  let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, REKEY_URL, numServers, rekeyTransanction);
+  let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, REKEY_URL, numServers, rekeyTransaction);
   
   const SE_PUB = response.SE_PUB;
   const wTOKEN = response.wTOKEN;
@@ -400,15 +432,15 @@ const login = async() => {
   const wSIGNS = await getStoredWSIGNS();
 
   // send DS.PUB + DE.PUB + wKEYS + NONCE
-  let loginTransanction = {
+  let loginTransaction = {
     wENCRYPTS,
     wSIGNS,  
     NONCE: rawNONCE
   };
 
-  console.log("Sent Data: ", loginTransanction);
+  console.log("Sent Data: ", loginTransaction);
 
-  let response = await encryptDataAndSendtoServer(LOGIN_ENCRYPTS, LOGIN_SIGNS, deviceID, LOGIN_URL, numServers, loginTransanction);
+  let response = await encryptDataAndSendtoServer(LOGIN_ENCRYPTS, LOGIN_SIGNS, deviceID, LOGIN_URL, numServers, loginTransaction);
   console.log("Response: ", response); 
 
   const wTOKEN = new Uint8Array(response.wTOKEN);  
@@ -425,15 +457,18 @@ const login = async() => {
   const SECRET = await exportCryptoKeyToRaw(await unwrapSecretWithToken(wSECRET, TOKEN)); 
   
   // derive SIGNS + ENCRYPTS from SECRET + store in session memory  
-  const [ SIGNS, ENCRYPTS ] = await deriveSignsAndEncryptsFromSecret(SECRET, numServers);
+  const [ ENCRYPTS, SIGNS ] = await deriveSignsAndEncryptsFromSecret(SECRET, numServers);
 
   // Convert the CryptoKeys to a storable format before saving
-  const exportedSigns = await Promise.all(SIGNS.map(async (sign) => await exportCryptoKeyToRaw(sign)));
-  const exportedEncrypts = await Promise.all(ENCRYPTS.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
+  //const exportedSigns = await Promise.all(SIGNS.map(async (sign) => await exportCryptoKeyToRaw(sign)));
+  //const exportedEncrypts = await Promise.all(ENCRYPTS.map(async (encrypt) => await exportCryptoKeyToRaw(encrypt)));
   
   // Store 'signs' and 'encrypts' in session memory
-  sessionStorage.setItem('signs', JSON.stringify(exportedSigns));
-  sessionStorage.setItem('encrypts', JSON.stringify(exportedEncrypts));
+  //sessionStorage.setItem('signs', JSON.stringify(exportedSigns));
+  //sessionStorage.setItem('encrypts', JSON.stringify(exportedEncrypts));
+  await storeSessionENCRYPTS(ENCRYPTS);
+  await storeSessionSIGNS(SIGNS);
+
   // Check if rekey is needed
   const REKEY_PERIOD = 1000 * 60 * 60 * 24; // 24 hours for example
   const timeNow = Date.now();
@@ -443,6 +478,22 @@ const login = async() => {
   }
  
 } 
+
+const session = async() => {
+
+  const ENCRYPTS = await getStoredSessionENCRYPTS();
+  const SIGNS = await getStoredSessionSIGNS();
+  const deviceID = await getStoredDeviceID();
+
+  const MSG = "HELLO!";
+  let sessionTransaction = {
+    MSG
+  };
+
+  // Send transaction to server
+  let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, SESSION_URL, NUM_SERVERS, sessionTransaction);
+  console.log("Response: ", response);  
+}
 
 function App() {  
 
@@ -459,6 +510,7 @@ function App() {
       <button onClick={register}>Register</button>
       <button onClick={rekey}>Rekey</button>
       <button onClick={login}>Login</button>
+      <button onClick={session}>Session</button>
     </header>
   </div>
 
