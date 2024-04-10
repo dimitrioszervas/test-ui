@@ -168,7 +168,7 @@ const generateNKeys = async (n, salt, type, baseKey) => {
 };
 
 // Function to encrypt a shard with a given CryptoKey
-export async function encryptShard(shard, cryptoKey, src) {
+export async function encrypt(dataToEncrypt, cryptoKey, src) {
 
   let iv = new Uint8Array(12);
   for (let i = 0; i < src.length; i++) {
@@ -176,7 +176,7 @@ export async function encryptShard(shard, cryptoKey, src) {
   }
 
   const algo = { name: "AES-GCM", iv: iv, tagLength: 128 };
-  const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, shard);
+  const ciphertext = await crypto.subtle.encrypt(algo, cryptoKey, dataToEncrypt);
   return new Uint8Array(ciphertext);
 }
 

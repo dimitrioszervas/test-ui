@@ -3,7 +3,7 @@ import cbor from "cbor-js";
 
 import { calculateReedSolomonShards } from "./ReedSolomon";
 import { calculateNumberOfShardsPerServer } from "./ReedSolomon";
-import { encryptShard } from "./CryptoUtils";
+import { encrypt } from "./CryptoUtils";
 import { calculateHMAC } from "./CryptoUtils";
 
 /*
@@ -116,7 +116,7 @@ export const encryptDataAndSendtoServer = async (ENCRYPTS, SIGNS, SRC, endpoint,
       let encryptsIndex = Math.trunc(i / numShardsPerServer) + 1; 
 
       const encryptedTransactionShard = 
-            await encryptShard(transactionShards[i], ENCRYPTS[encryptsIndex], SRC);
+            await encrypt(transactionShards[i], ENCRYPTS[encryptsIndex], SRC);
 
       encryptedTransanctionShards.push(encryptedTransactionShard);
     }

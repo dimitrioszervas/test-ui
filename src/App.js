@@ -1,6 +1,7 @@
 import { encryptDataAndSendtoServer } from "./protocol";
 import {   
          deriveSignsAndEncryptsFromSecret,
+         encrypt,
          generateAesKWKey,
          deriveRawID,
          deriveRawSecret, 
@@ -56,11 +57,11 @@ async function storeDeviceID(devideID) {
   g_storedDeviceID = devideID;
 }
 
-async function storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS) {
+async function storePreENCRYPTS(LOGIN_ENCRYPTS) {
   g_storedLOGIN_ENCRYPTS = LOGIN_ENCRYPTS;
 }
 
-async function storeLOGIN_SIGNS(LOGIN_SIGNS) {
+async function storePreSIGNS(LOGIN_SIGNS) {
   g_storedLOGIN_SIGNS = LOGIN_SIGNS;
 }
 
@@ -101,7 +102,7 @@ async function storeSessionSIGNS(SIGNS) {
 }
 
 
-async function getStoredLOGIN_ENCRYPTS() {  
+async function getStoredPreENCRYPTS() {  
   let LOGIN_ENCRYPTS = [];
   for (let i = 0; i < g_storedLOGIN_ENCRYPTS.length; i++) {
     let cryptoKey = await importAesGcmKey(g_storedLOGIN_ENCRYPTS[i]);
@@ -110,7 +111,7 @@ async function getStoredLOGIN_ENCRYPTS() {
   return LOGIN_ENCRYPTS;
 }
 
-async function getStoredLOGIN_SIGNS() { 
+async function getStoredPreSIGNS() { 
   let LOGIN_SIGNS = [];
   for (let i = 0; i < g_storedLOGIN_SIGNS.length; i++) {
     let cryptoKey = await importHmacKey(g_storedLOGIN_SIGNS[i]);
@@ -212,22 +213,26 @@ const invite = async() => {
   const inviteSECRET = await deriveRawSecret(inviteCode, inviteID);
   const [inviteENCRYPTS, inviteSIGNS] = await deriveSignsAndEncryptsFromSecret(inviteSECRET, numServers);
   
-  let rawInviteENCRYPTS = [];
-  let rawInviteSIGNS = []
-  for (let n = 0; n <= numServers; n++) {
+  let encryptedInviteENCRYPTS = [];
+  let encryptedInviteSIGNS = []
+  encryptedInviteENCRYPTS.push(await exportCryptoKeyToRaw(inviteENCRYPTS[0]));
+  encryptedInviteSIGNS.push(await exportCryptoKeyToRaw(inviteSIGNS[0]));
+  for (let n = 1; n <= numServers; n++) {
+    const rawInviteENCRYPT = await exportCryptoKeyToRaw(inviteENCRYPTS[n]);
+    const encryptedIviteENCRYPT = await encrypt(rawInviteENCRYPT, deviceENCRYPTS[n], deviceID);
+    encryptedInviteENCRYPTS.push(encryptedIviteENCRYPT);
 
-    const rawENCRYPT = await exportCryptoKeyToRaw(inviteENCRYPTS[n]);
-    rawInviteENCRYPTS.push(rawENCRYPT);
-
-    const rawSIGN = await exportCryptoKeyToRaw(inviteSIGNS[n]);
-    rawInviteSIGNS.push(rawSIGN);
+    const rawInviteSIGN = await exportCryptoKeyToRaw(inviteSIGNS[n]);
+    const encryptedInviteSIGN = await encrypt(rawInviteSIGN, deviceENCRYPTS[n], deviceID);
+    encryptedInviteSIGNS.push(encryptedInviteSIGN);
   }
 
   // send invite.id + invite.SIGNS + invite.ENCRYPTS as invite transaction data... 
   // Compose transaction and send KEYS using OWN_KEYS
+  // Encrypt Server elements (invite.ENCRYPTS & invite.SIGNS) with owner device.ENCRYPTS
   let inviteTransaction = {   
-    inviteENCRYPTS: rawInviteENCRYPTS,
-    inviteSIGNS: rawInviteSIGNS,
+    inviteENCRYPTS: encryptedInviteENCRYPTS,
+    inviteSIGNS: encryptedInviteSIGNS,
     inviteID 
   };
 
@@ -395,20 +400,20 @@ const rekey  = async() => {
   
   // LOGINS[0] = device. SIGNS[0]
   // for each (n), store LOGINS[n] = ECDH.derive (DE.PRIV, SE.PUB[n])
-  let LOGIN_ENCRYPTS = [];
-  let LOGIN_SIGNS = [];
+  let preENCRYPTS = [];
+  let preSIGNS = [];
   for (let n = 0; n <= numServers; n++) {
     const cryptoKeySE_PUB = await importECDHPublicKey(new Uint8Array(SE_PUB[n]).buffer);
    
     const derivedEncrypt = await ECDHDeriveEncrypt(DE.privateKey, cryptoKeySE_PUB);
-    LOGIN_ENCRYPTS.push(derivedEncrypt);   
+    preENCRYPTS.push(derivedEncrypt);   
    
     const derivedSign = await ECDHDeriveSign(DE.privateKey, cryptoKeySE_PUB);
-    LOGIN_SIGNS.push(derivedSign); 
+    preSIGNS.push(derivedSign); 
   }
 
-  await storeLOGIN_ENCRYPTS(LOGIN_ENCRYPTS);
-  await storeLOGIN_SIGNS(LOGIN_SIGNS);
+  await storePreENCRYPTS(preENCRYPTS);
+  await storePreSIGNS(preSIGNS);
 
   const deviceCode = INVITE_CODE; 
   await createNewSecretAndWKeys(numServers, deviceCode);  
@@ -422,8 +427,8 @@ const login = async() => {
   // get LOGINS[] for device from storage
   // SIGNS[] = ENCRYPTS[] = LOGINS[] for login transaction processing
   const deviceID = await getStoredDeviceID();
-  const LOGIN_ENCRYPTS = await getStoredLOGIN_ENCRYPTS();
-  const LOGIN_SIGNS = await getStoredLOGIN_SIGNS();
+  const LOGIN_ENCRYPTS = await getStoredPreENCRYPTS();
+  const LOGIN_SIGNS = await getStoredPreSIGNS();
   const NONCE = await getStoredNONCEFromMem();
   const rawNONCE = await exportCryptoKeyToRaw(NONCE);
 
