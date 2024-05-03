@@ -2,31 +2,37 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 import cbor from 'cbor-js';
-import { encryptDataAndSendtoServer } from './protocoltest';
-import { deriveSignsAndEncryptsFromSecret,
+//import { encryptDataAndSendtoServer } from './protocoltest';
+import { encryptDataAndSendtoServer } from "./protocol";
+import {   
+         deriveSignsAndEncryptsFromSecret,
          encrypt,
          generateAesKWKey,
-         deriveRawID, 
-         deriveRawSecret,
-         derivePBKDF2Key,
+         deriveRawID,
+         deriveRawSecret, 
+         derivePBKDF2Key, 
          wrapKey, 
-         generateECDSAKeyPair,
-         generateECDHKeyPair,
+         generateECDSAKeyPair, 
+         generateECDHKeyPair,           
          exportCryptoKeyToJwk,
          exportCryptoKeyToRaw,
          importAesGcmKey,
-         importAesKWKey,
          importHmacKey,
          unwrapKey,
          unwrapSecretWithToken,
-         unwrapDecrypt, 
+         unwrapDecrypt,
          unwrapSign,
-         importECDHPublicKey, 
-         ECDHDeriveEncrypt, 
-         ECDHDeriveSign, 
-         generateTokenOrNonce,
-         exportCryptoKeyFromJwk,
-        } from './CryptoUtils';
+         importECDHPublicKey,
+         ECDHDeriveEncrypt,
+         ECDHDeriveSign,
+         importAesKWKey,     
+         convertBytesToBase64,
+         convertBase64ToBytes 
+        } from "./CryptoUtils";
+
+import './App.css';
+import { getQueriesForElement } from "@testing-library/react";
+import { AES } from "crypto-js";
 
 const INVITE_URL = "https://localhost:7125/api/Transactions/Invite";
 const REGISTER_URL = "https://localhost:7125/api/Transactions/Register";
@@ -34,13 +40,12 @@ const REKEY_URL = "https://localhost:7125/api/Transactions/Rekey";
 const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";
 const SESSION_URL = "https://localhost:7125/api/Transactions/Session"; 
 
+
 const NUM_SERVERS=3;
 const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
 const numServers= NUM_SERVERS;
 const MY_PASSWORD = "Password";
-
-
 
 
 let wrapKeyWithKeyAesKW;
@@ -71,7 +76,7 @@ function App() {
   }, []);
 
 const handleInvite = async () => {
-    
+     
   const numServers = NUM_SERVERS; 
   // we are using the device.CODE for the test app, but production app will 
   // allow any logged-in user to invite others
@@ -119,7 +124,7 @@ const handleInvite = async () => {
 
   // Send transaction to server
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, INVITE_URL, numServers, inviteTransaction);
-  console.log("Response: ", response);
+  console.log("Response: ", response);  
 };
 
 const createNewSecretAndWKeys = async(numServers, deviceCode) => { 
@@ -213,12 +218,10 @@ const handleRegisterWithInvite = async (inviteCode2) => {
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransaction);
   console.log("response: ", response);  
   await createNewSecretAndWKeys(numServers, inviteCode);
-
 };
 
-
 const handleRekeyWithToken = async (TOKEN) => {
-  
+
   const numServers = NUM_SERVERS;
 
   // store rekeyTime = timeNow
@@ -299,7 +302,7 @@ const handleRekeyWithToken = async (TOKEN) => {
   await storePreSIGNS(preSIGNS);
 
   const deviceCode = INVITE_CODE; 
-  await createNewSecretAndWKeys(numServers, deviceCode);
+  await createNewSecretAndWKeys(numServers, deviceCode);   
 }
 
 const handleLogin = async () => {
@@ -364,23 +367,22 @@ const handleLogin = async () => {
   if (rekeyTime + REKEY_PERIOD <= timeNow) {
     //await rekey(TOKEN); // Call rekey with the TOKEN
   }
- 
-};
-   
-const session = async() => {
-   
-  const ENCRYPTS = await getStoredSessionENCRYPTS();
-  const SIGNS = await getStoredSessionSIGNS();
-  const deviceID = await getStoredDeviceID();
-
-  const MSG = "HELLO!";
-  let sessionTransaction = {
-    MSG
   };
+   
+    const session = async() => {
 
-  // Send transaction to server
-  let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, SESSION_URL, NUM_SERVERS, sessionTransaction);
-  console.log("Response: ", response);  
+      const ENCRYPTS = await getStoredSessionENCRYPTS();
+      const SIGNS = await getStoredSessionSIGNS();
+      const deviceID = await getStoredDeviceID();
+    
+      const MSG = "HELLO!";
+      let sessionTransaction = {
+        MSG
+      };
+    
+      // Send transaction to server
+      let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, SESSION_URL, NUM_SERVERS, sessionTransaction);
+      console.log("Response: ", response);  
   }
 
 async function getTokenFromSession() {
@@ -391,241 +393,229 @@ async function getTokenFromSession() {
 function generateInviteCode() {
   return Math.random().toString(36).substring(2, 10); 
 }
-/*
-async function sendToServer(endpoint, data) {
-  try {
-    let responseData;   
-    await axios
-      .post(endpoint, data, {
-        headers: {
-          "Content-Type": "application/octet-stream",
-          'Access-Control-Allow-Credentials':true,
-          "Access-Control-Allow-Origin": "*",
-          "Accept" : "application/octet-stream",                   
-        },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
-        //responseType: 'blob'
-      })
-      .then((response) => {         
-        responseData = response.data;       
-      })
-      .catch((error) => {
-        console.error("Error sending data to backend:", error);
-      });
-           
-      let CBOR = await cbor.decode(base64ToArrayBuffer(responseData));      
 
-      return CBOR;
+async function storeDeviceID(deviceID) { 
+  let str = await convertBytesToBase64(deviceID); 
+  localStorage.setItem("deviceID", str);
+}
 
-    //return await cbor.decode(base64ToArrayBuffer(response.data));
-  } catch (error) {
-    console.error("Error sending data to backend:", error);
-    return null;
+async function storePreENCRYPTS(preENCRYPTS) {
+  let array = [];
+  for (let i = 0; i < preENCRYPTS.length; i++) {
+    let base64 = await convertBytesToBase64(preENCRYPTS[i]); 
+    array.push(base64);
   }
+
+  localStorage.setItem("preENCRYPTS", array.toString());
 }
-*/
-function base64ToArrayBuffer(base64) {
-  try {
-    base64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
-    var binaryString = atob(base64);
-    var bytes = new Uint8Array(binaryString.length);
-    for (var i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-  } catch (e) {
-    console.error("Failed to convert base64 to array buffer:", e);
-    return null;
+
+async function storePreSIGNS(preSIGNS) {
+  let array = [];
+  for (let i = 0; i < preSIGNS.length; i++) {
+    let base64 = await convertBytesToBase64(preSIGNS[i]); 
+    array.push(base64);
   }
+
+  localStorage.setItem("preSIGNS", array.toString());
 }
 
-{/* function base64ToArrayBuffer(base64) {
-  var binaryString = atob(base64);
-  var bytes = new Uint8Array(binaryString.length);
-  for (var i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+async function storeDS_PRIV(DS_PRIV) {
+  const jwkString = JSON.stringify(DS_PRIV);
+  localStorage.setItem("DS_PRIV", jwkString);
+}
+
+async function storeDE_PRIV(DE_PRIV) {
+  const jwkString = JSON.stringify(DE_PRIV);
+  localStorage.setItem("DE_PRIV", jwkString);
+}
+
+async function storeSE_PUB(SE_PUB) {
+  const jwkString = JSON.stringify(SE_PUB);
+  localStorage.setItem("SE_PUB", jwkString);
+}
+
+async function storeWSECRET(wSECRET) {
+  let str = await convertBytesToBase64(wSECRET); 
+  localStorage.setItem("wSECRET", str);
+}
+
+async function storeWENCRYPTS(wENCRYPTS) {
+  let array = [];
+  for (let i = 0; i < wENCRYPTS.length; i++) {
+    let base64 = await convertBytesToBase64(wENCRYPTS[i]); 
+    array.push(base64);
   }
-  return bytes.buffer;
-}*/}
 
-{/*function storeKeysInSessionMemory(signs, encrypts) {
-  // Implement the logic to store keys in session memory
-  sessionStorage.setItem('signs', JSON.stringify(signs));
-  sessionStorage.setItem('encrypts', JSON.stringify(encrypts));
-}*/}
-
-
-function storeDS_PRIV(DS_PRIV) {
-  localStorage.setItem('DS_PRIV', JSON.stringify(DS_PRIV));
+  localStorage.setItem("wENCRYPTS", array.toString());
 }
 
-function storeDE_PRIV(DE_PRIV) {
-  localStorage.setItem('DE_PRIV', JSON.stringify(DE_PRIV));
-}
+async function storeWSIGNS(wSIGNS) {
+  let array = [];
+  for (let i = 0; i < wSIGNS.length; i++) {
+    let base64 = await convertBytesToBase64(wSIGNS[i]); 
+    array.push(base64);
+  }
 
-async function storeSessionENCRYPTS(ENCRYPTS) { 
-  const jwkPreENCRYPT = ENCRYPTS.map(key => exportCryptoKeyToJwk(key));
-  // Store the JWKs as a JSON string in localStorage
-  localStorage.setItem('sessionENCRYPTS', JSON.stringify(jwkPreENCRYPT));
-}
-
-async function storeSessionSIGNS(SIGNS) { 
-  const jwkPreSIGNS = SIGNS.map(key => exportCryptoKeyToJwk(key));
-  // Store the JWKs as a JSON string in localStorage
-  localStorage.setItem('sessionSIGNS', JSON.stringify(jwkPreSIGNS));
-}
-
-async function getStoredSessionENCRYPTS() {
-  // Assuming ENCRYPTS keys are stored as a JSON string in localStorage
-  const encryptsJson = localStorage.getItem('sessionENCRYPTS');
-  if (!encryptsJson) return [];
-  const encrypts = JSON.parse(encryptsJson);
-  // Assuming encrypts are stored as JWKs, convert them back to CryptoKeys
-  return Promise.all(encrypts.map(jwk => exportCryptoKeyToJwk(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"])));
-}
-
-async function getStoredSessionSIGNS() {
-  // Assuming SIGNS keys are stored as a JSON string in localStorage
-  const signsJson = localStorage.getItem('sessionSIGNS');
-  if (!signsJson) return [];
-  const signs = JSON.parse(signsJson);
-  // Assuming signs are stored as JWKs, convert them back to CryptoKeys
-  return Promise.all(signs.map(jwk => exportCryptoKeyToJwk(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
+  localStorage.setItem("wSIGNS", array.toString());
 }
 
 async function getStoredDeviceID() {
-  // Assuming the device ID is stored directly as a string in localStorage
-  return localStorage.getItem('deviceID');
+  let str = localStorage.getItem("deviceID"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return uint8arr;
 }
 
-function storeRekeyTime(rekeyTime) {
-  localStorage.setItem('rekeyTime', rekeyTime.toString());
+async function storeSessionENCRYPTS(sessionENCRYPTS) {
+  let array = [];
+  for (let i = 0; i < sessionENCRYPTS.length; i++) {
+    let raw = await exportCryptoKeyToRaw(sessionENCRYPTS[i]);
+    let base64 = await convertBytesToBase64(raw); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("sessionENCRYPTS", array.toString());
+
 }
 
-async function getStoredWENCRYPTS() {
-  // Assuming wENCRYPTS keys are stored as a JSON string in localStorage
-  const wEncryptsJson = localStorage.getItem('wENCRYPTS');
-  if (!wEncryptsJson) return [];
-  const wEncrypts = JSON.parse(wEncryptsJson);
-  // Assuming wEncrypts are stored as JWKs, convert them back to CryptoKeys
-  return Promise.all(wEncrypts.map(jwk => importAesGcmKey(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"])));
+async function storeSessionSIGNS(sessionSIGNS) {
+  let array = [];
+  for (let i = 0; i < sessionSIGNS.length; i++) {
+    let raw = await exportCryptoKeyToRaw(sessionSIGNS[i]);
+    let base64 = await convertBytesToBase64(raw); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("sessionSIGNS", array.toString());
+
 }
 
-async function getStoredWSIGNS() {
-  // Assuming WSIGNS keys are stored as a JSON string in localStorage
-  const wSignsJson = localStorage.getItem('wSIGNS');
-  if (!wSignsJson) return [];
-  const wSigns = JSON.parse(wSignsJson);
-  // Assuming wSigns are stored as JWKs, convert them back to CryptoKeys
-  return Promise.all(wSigns.map(jwk => importHmacKey(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
+async function getStoredPreENCRYPTS() {  
+  
+  let str = localStorage.getItem("preENCRYPTS");
+  let array = str.split(',');
+
+  let preENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importAesGcmKey(await convertBase64ToBytes(array[i]));
+    preENCRYPTS.push(cryptoKey);
+  }
+
+  return preENCRYPTS;
 }
 
-async function getStoredNONCEFromMem() {
-  // Assuming the NONCE is stored directly as a string in sessionStorage
-  const jwkString = sessionStorage.getItem('NONCE');
-  const jwk = JSON.parse(jwkString);
-  const key = await window.crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    {
-      name: "AES-KW",
-      length: 256,
-    },
-    true, //whether the key is extractable (i.e. can be used in exportKey)
-    ["wrapKey", "unwrapKey"]
-  );
-
-  return key;
+async function getStoredPreSIGNS() {  
+    let str = localStorage.getItem("preSIGNS");
+    let array = str.split(',');
+  
+    let preSIGNS = []
+    for (let i=0; i<array.length; i++) {
+      let cryptoKey = await importHmacKey(await convertBase64ToBytes(array[i]));
+      preSIGNS.push(cryptoKey);
+    }  
+    return preSIGNS;
 }
 
-function storePreENCRYPTS(preENCRYPTS) {
-  // Convert the CryptoKeys to JWK format for storage
-  const jwkPreENCRYPTS = preENCRYPTS.map(key => exportCryptoKeyToJwk(key));
-  // Store the JWKs as a JSON string in localStorage
-  localStorage.setItem('preENCRYPTS', JSON.stringify(jwkPreENCRYPTS));
-}
-
-async function getStoredPreENCRYPTS() {
-  // Assuming preENCRYPTS keys are stored as a JSON string in localStorage
-  const preENCRYPTSJson = localStorage.getItem('preENCRYPTS');
-  if (!preENCRYPTSJson) return [];
-  const preENCRYPTS = JSON.parse(preENCRYPTSJson);
-  // Assuming preENCRYPTS are stored as JWKs, convert them back to CryptoKeys
-  return Promise.all(preENCRYPTS.map(jwk => importAesGcmKey(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"]))); 
-}
-
-function storePreSIGNS(preSIGNS) {
-  // Convert the CryptoKeys to JWK format for storage
-  const jwkPreSIGNS = preSIGNS.map(key => exportCryptoKeyToJwk(key));
-  // Store the JWKs as a JSON string in localStorage
-  localStorage.setItem('preSIGNS', JSON.stringify(jwkPreSIGNS));
-}
-
-function getStoredPreSIGNS() {
-    // Assuming preSIGNS keys are stored as a JSON string in localStorage
-    const preSIGNSJson = localStorage.getItem('preSIGNS');
-    if (!preSIGNSJson) return [];
-    const preSIGNS = JSON.parse(preSIGNSJson);
-    // Assuming preSIGNS are stored as JWKs, convert them back to CryptoKeys
-    return Promise.all(preSIGNS.map(jwk => importHmacKey(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
-}
-
-function storeWSECRET(wSECRET) {
-  localStorage.setItem('wSECRET', JSON.stringify(wSECRET));
-}
-
-function storeDeviceID(deviceID) {
-  localStorage.setItem('deviceID', JSON.stringify(deviceID));
-}
-
-async function storeTOKENInMem(TOKEN) {
-  const jwk = await window.crypto.subtle.exportKey("jwk", TOKEN);  
-  const jwkString = JSON.stringify(jwk);
-  localStorage.setItem('TOKEN', jwkString);
+async function storeRekeyTime(rekeyTime) {
+  localStorage.setItem("rekeyTime", rekeyTime.toString());
 }
 
 async function storeNONCEInMem(NONCE) {
-  const jwk = await window.crypto.subtle.exportKey("jwk", NONCE);  
-  const jwkString = JSON.stringify(jwk);
-  localStorage.setItem('NONCE', jwkString);
+  let raw = await exportCryptoKeyToRaw(NONCE);
+  let str = await convertBytesToBase64(raw);
+  localStorage.setItem("NONCE", str);
 }
 
-function storeWENCRYPTS(wENCRYPTS) {
-  localStorage.setItem('wENCRYPTS', JSON.stringify(wENCRYPTS));
+async function storeTOKENInMem(TOKEN) {
+  let raw = await exportCryptoKeyToRaw(TOKEN);
+  let str = await convertBytesToBase64(raw);
+  localStorage.setItem("TOKEN", str);
 }
 
-function storeWSIGNS(wSIGNS) {
-  localStorage.setItem('wSIGNS', JSON.stringify(wSIGNS));
+async function getStoredDS_PRIV() {
+  return JSON.parse(localStorage.getItem("DS_PRIV"));
 }
 
-function getReleyTime(rekeyTime) {
-  localStorage.setItem('rekeyTime', JSON.stringify(rekeyTime));
+async function getStoredDE_PRIV() {
+  return JSON.parse(localStorage.getItem("DE_PRIV"));
 }
 
-async function getStoredTOKENFromMem() {
-  // Assuming the TOKEN is stored directly as a string in sessionStorage  
-  const jwkString = sessionStorage.getItem('TOKEN');
-  const jwk = JSON.parse(jwkString);
-  const key = await window.crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    {
-      name: "AES-KW",
-      length: 256,
-    },
-    true, //whether the key is extractable (i.e. can be used in exportKey)
-    ["wrapKey", "unwrapKey"]
-  );
-
-  return key;
+async function getStoredSE_PUB() {
+  return JSON.parse(localStorage.getItem("SE_PUB"));
 }
 
 async function getStoredWSECRET() {
-  const wSecretJson = localStorage.getItem('wSECRET');
-  if (!wSecretJson) return null;
-  return JSON.parse(wSecretJson);
+  let str = localStorage.getItem("wSECRET"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return uint8arr;
 }
+
+async function getStoredWENCRYPTS() {
+
+  let str = localStorage.getItem("wENCRYPTS");
+  let array = str.split(',');
+
+  let wENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    wENCRYPTS.push(await convertBase64ToBytes(array[i]));
+  }
+
+  return wENCRYPTS;
+}
+
+async function getStoredWSIGNS() {
+
+  let str = localStorage.getItem("wSIGNS");
+  let array = str.split(',');
+
+  let wSIGNS = []
+  for (let i=0; i<array.length; i++) {
+    wSIGNS.push(await convertBase64ToBytes(array[i]));
+  }
+
+  return wSIGNS;
+}
+
+async function getReleyTime() {
+    return Number.parseInt(localStorage.getItem("rekeyTime"));
+}
+
+async function getStoredNONCEFromMem() {  
+  let str = localStorage.getItem("NONCE"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return await importAesKWKey(uint8arr);
+}
+
+async function getStoredTOKENFromMem() {
+  let str = localStorage.getItem("TOKEN"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return await importAesKWKey(uint8arr);
+}
+
+async function getStoredSessionENCRYPTS() { 
+  let str = localStorage.getItem("sessionENCRYPTS");
+  let array = str.split(',');
+
+  let sessionENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importAesGcmKey(await convertBase64ToBytes(array[i]));
+    sessionENCRYPTS.push(cryptoKey);
+  }
+
+  return sessionENCRYPTS;
+}
+
+async function getStoredSessionSIGNS() { 
+  let str = localStorage.getItem("sessionSIGNS");
+  let array = str.split(',');
+
+  let sessionSIGNS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importHmacKey(await convertBase64ToBytes(array[i]));
+    sessionSIGNS.push(cryptoKey);
+  }  
+  return sessionSIGNS;
+}
+
 
 return (
   <div className="App">

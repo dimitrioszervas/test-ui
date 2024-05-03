@@ -20,7 +20,9 @@ import {
          importECDHPublicKey,
          ECDHDeriveEncrypt,
          ECDHDeriveSign,
-         importAesKWKey,      
+         importAesKWKey,     
+         convertBytesToBase64,
+         convertBase64ToBytes 
         } from "./CryptoUtils";
 
 import './App.css';
@@ -38,154 +40,227 @@ const INVITE_CODE = "5678"
 const NUM_SERVERS = 3;
 const MY_PASSWORD = "Password";
 
-let g_storedDeviceID;
-let g_storedLOGIN_ENCRYPTS;
-let g_storedLOGIN_SIGNS;
-let g_storedDS_PRIV;
-let g_storedDE_PRIV;
-let g_storedSE_PUB;
-let g_storedWSECRET;
-let g_storedWENCRYPTS;
-let g_storedWSIGNS;
-let g_rekeyTime;
-let g_storedNONCE;
-let g_storedTOKEN;
-let g_storedSessionENCRYPTS;
-let g_storedSessionSIGNS;
 
-async function storeDeviceID(devideID) {
-  g_storedDeviceID = devideID;
+async function storeDeviceID(deviceID) { 
+  let str = await convertBytesToBase64(deviceID); 
+  localStorage.setItem("deviceID", str);
 }
 
-async function storePreENCRYPTS(LOGIN_ENCRYPTS) {
-  g_storedLOGIN_ENCRYPTS = LOGIN_ENCRYPTS;
+async function storePreENCRYPTS(preENCRYPTS) {
+  let array = [];
+  for (let i = 0; i < preENCRYPTS.length; i++) {
+    let base64 = await convertBytesToBase64(preENCRYPTS[i]); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("preENCRYPTS", array.toString());
 }
 
-async function storePreSIGNS(LOGIN_SIGNS) {
-  g_storedLOGIN_SIGNS = LOGIN_SIGNS;
+async function storePreSIGNS(preSIGNS) {
+  let array = [];
+  for (let i = 0; i < preSIGNS.length; i++) {
+    let base64 = await convertBytesToBase64(preSIGNS[i]); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("preSIGNS", array.toString());
 }
 
 async function storeDS_PRIV(DS_PRIV) {
-  g_storedDS_PRIV = DS_PRIV;
+  const jwkString = JSON.stringify(DS_PRIV);
+  localStorage.setItem("DS_PRIV", jwkString);
 }
 
 async function storeDE_PRIV(DE_PRIV) {
-  g_storedDE_PRIV = DE_PRIV;
+  const jwkString = JSON.stringify(DE_PRIV);
+  localStorage.setItem("DE_PRIV", jwkString);
 }
 
 async function storeSE_PUB(SE_PUB) {
-  g_storedSE_PUB = SE_PUB;
+  const jwkString = JSON.stringify(SE_PUB);
+  localStorage.setItem("SE_PUB", jwkString);
 }
 
 async function storeWSECRET(wSECRET) {
-  g_storedWSECRET = wSECRET;
+  let str = await convertBytesToBase64(wSECRET); 
+  localStorage.setItem("wSECRET", str);
 }
 
 async function storeWENCRYPTS(wENCRYPTS) {
-  g_storedWENCRYPTS = wENCRYPTS;
+  let array = [];
+  for (let i = 0; i < wENCRYPTS.length; i++) {
+    let base64 = await convertBytesToBase64(wENCRYPTS[i]); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("wENCRYPTS", array.toString());
 }
 
 async function storeWSIGNS(wSIGNS) {
-  g_storedWSIGNS = wSIGNS;
+  let array = [];
+  for (let i = 0; i < wSIGNS.length; i++) {
+    let base64 = await convertBytesToBase64(wSIGNS[i]); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("wSIGNS", array.toString());
 }
 
 async function getStoredDeviceID() {
-  return g_storedDeviceID;
+  let str = localStorage.getItem("deviceID"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return uint8arr;
 }
 
-async function storeSessionENCRYPTS(ENCRYPTS) {
-  g_storedSessionENCRYPTS = ENCRYPTS;
+async function storeSessionENCRYPTS(sessionENCRYPTS) {
+  let array = [];
+  for (let i = 0; i < sessionENCRYPTS.length; i++) {
+    let raw = await exportCryptoKeyToRaw(sessionENCRYPTS[i]);
+    let base64 = await convertBytesToBase64(raw); 
+    array.push(base64);
+  }
+
+  localStorage.setItem("sessionENCRYPTS", array.toString());
+
 }
 
-async function storeSessionSIGNS(SIGNS) {
-  g_storedSessionSIGNS = SIGNS;
-}
+async function storeSessionSIGNS(sessionSIGNS) {
+  let array = [];
+  for (let i = 0; i < sessionSIGNS.length; i++) {
+    let raw = await exportCryptoKeyToRaw(sessionSIGNS[i]);
+    let base64 = await convertBytesToBase64(raw); 
+    array.push(base64);
+  }
 
+  localStorage.setItem("sessionSIGNS", array.toString());
+
+}
 
 async function getStoredPreENCRYPTS() {  
-  let LOGIN_ENCRYPTS = [];
-  for (let i = 0; i < g_storedLOGIN_ENCRYPTS.length; i++) {
-    let cryptoKey = await importAesGcmKey(g_storedLOGIN_ENCRYPTS[i]);
-    LOGIN_ENCRYPTS.push(cryptoKey);
+  
+  let str = localStorage.getItem("preENCRYPTS");
+  let array = str.split(',');
+
+  let preENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importAesGcmKey(await convertBase64ToBytes(array[i]));
+    preENCRYPTS.push(cryptoKey);
   }
-  return LOGIN_ENCRYPTS;
+
+  return preENCRYPTS;
 }
 
-async function getStoredPreSIGNS() { 
-  let LOGIN_SIGNS = [];
-  for (let i = 0; i < g_storedLOGIN_SIGNS.length; i++) {
-    let cryptoKey = await importHmacKey(g_storedLOGIN_SIGNS[i]);
-    LOGIN_SIGNS.push(cryptoKey);
-  }  
-  return LOGIN_SIGNS;
+async function getStoredPreSIGNS() {  
+    let str = localStorage.getItem("preSIGNS");
+    let array = str.split(',');
+  
+    let preSIGNS = []
+    for (let i=0; i<array.length; i++) {
+      let cryptoKey = await importHmacKey(await convertBase64ToBytes(array[i]));
+      preSIGNS.push(cryptoKey);
+    }  
+    return preSIGNS;
 }
 
 async function storeRekeyTime(rekeyTime) {
-  g_rekeyTime = rekeyTime;
+  localStorage.setItem("rekeyTime", rekeyTime.toString());
 }
 
 async function storeNONCEInMem(NONCE) {
-  g_storedNONCE = NONCE;
+  let raw = await exportCryptoKeyToRaw(NONCE);
+  let str = await convertBytesToBase64(raw);
+  localStorage.setItem("NONCE", str);
 }
 
 async function storeTOKENInMem(TOKEN) {
-  g_storedTOKEN = TOKEN;
+  let raw = await exportCryptoKeyToRaw(TOKEN);
+  let str = await convertBytesToBase64(raw);
+  localStorage.setItem("TOKEN", str);
 }
 
 async function getStoredDS_PRIV() {
-  return g_storedDS_PRIV;
+  return JSON.parse(localStorage.getItem("DS_PRIV"));
 }
 
 async function getStoredDE_PRIV() {
-  return g_storedDE_PRIV;
+  return JSON.parse(localStorage.getItem("DE_PRIV"));
 }
 
 async function getStoredSE_PUB() {
-  return g_storedSE_PUB;
+  return JSON.parse(localStorage.getItem("SE_PUB"));
 }
 
 async function getStoredWSECRET() {
-  return g_storedWSECRET;
+  let str = localStorage.getItem("wSECRET"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return uint8arr;
 }
 
 async function getStoredWENCRYPTS() {
-  return g_storedWENCRYPTS;
+
+  let str = localStorage.getItem("wENCRYPTS");
+  let array = str.split(',');
+
+  let wENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    wENCRYPTS.push(await convertBase64ToBytes(array[i]));
+  }
+
+  return wENCRYPTS;
 }
 
 async function getStoredWSIGNS() {
-  return g_storedWSIGNS;
+
+  let str = localStorage.getItem("wSIGNS");
+  let array = str.split(',');
+
+  let wSIGNS = []
+  for (let i=0; i<array.length; i++) {
+    wSIGNS.push(await convertBase64ToBytes(array[i]));
+  }
+
+  return wSIGNS;
 }
 
 async function getReleyTime() {
-    return g_rekeyTime;
+    return Number.parseInt(localStorage.getItem("rekeyTime"));
 }
 
-async function getStoredNONCEFromMem() {
-  return g_storedNONCE;
+async function getStoredNONCEFromMem() {  
+  let str = localStorage.getItem("NONCE"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return await importAesKWKey(uint8arr);
 }
 
 async function getStoredTOKENFromMem() {
-  return g_storedTOKEN;
+  let str = localStorage.getItem("TOKEN"); 
+  let uint8arr = await convertBase64ToBytes(str); 
+  return await importAesKWKey(uint8arr);
 }
 
 async function getStoredSessionENCRYPTS() { 
-  /* 
-  let ENCRYPTS = [];
-  for (let i = 0; i < g_storedSessionENCRYPTS.length; i++) {
-    let cryptoKey = await importAesGcmKey(g_storedSessionENCRYPTS[i]);
-    ENCRYPTS.push(cryptoKey);
-  }*/
-  return g_storedSessionENCRYPTS;
+  let str = localStorage.getItem("sessionENCRYPTS");
+  let array = str.split(',');
+
+  let sessionENCRYPTS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importAesGcmKey(await convertBase64ToBytes(array[i]));
+    sessionENCRYPTS.push(cryptoKey);
+  }
+
+  return sessionENCRYPTS;
 }
 
 async function getStoredSessionSIGNS() { 
-  /*
-  let SIGNS = [];
-  for (let i = 0; i < g_storedSessionSIGNS.length; i++) {
-    let cryptoKey = await importHmacKey(g_storedSessionSIGNS[i]);
-    SIGNS.push(cryptoKey);
-  } */ 
-  return g_storedSessionSIGNS;
+  let str = localStorage.getItem("sessionSIGNS");
+  let array = str.split(',');
+
+  let sessionSIGNS = []
+  for (let i=0; i<array.length; i++) {
+    let cryptoKey = await importHmacKey(await convertBase64ToBytes(array[i]));
+    sessionSIGNS.push(cryptoKey);
+  }  
+  return sessionSIGNS;
 }
 
 

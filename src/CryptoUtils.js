@@ -462,3 +462,25 @@ export const deriveSignsAndEncryptsFromSecret = async (rawSecret, n) => {
   }
 };
 
+export const convertBytesToBase64 = async (buffer) => {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+export const convertBase64ToBytes = async (base64String) => {
+  const binaryString = atob(base64String);
+  const length = binaryString.length;
+  const buffer = new ArrayBuffer(length);
+  const view = new Uint8Array(buffer);
+
+  for (let i = 0; i < length; i++) {
+    view[i] = binaryString.charCodeAt(i);
+  }
+
+  return new Uint8Array(buffer);
+}
