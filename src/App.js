@@ -1,31 +1,32 @@
-import { encryptDataAndSendtoServer } from "./protocol";
-import {   
-         deriveSignsAndEncryptsFromSecret,
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './App.css';
+import cbor from 'cbor-js';
+import { encryptDataAndSendtoServer } from './protocoltest';
+import { deriveSignsAndEncryptsFromSecret,
          encrypt,
          generateAesKWKey,
-         deriveRawID,
-         deriveRawSecret, 
-         derivePBKDF2Key, 
+         deriveRawID, 
+         deriveRawSecret,
+         derivePBKDF2Key,
          wrapKey, 
-         generateECDSAKeyPair, 
-         generateECDHKeyPair,           
+         generateECDSAKeyPair,
+         generateECDHKeyPair,
          exportCryptoKeyToJwk,
          exportCryptoKeyToRaw,
          importAesGcmKey,
+         importAesKWKey,
          importHmacKey,
          unwrapKey,
          unwrapSecretWithToken,
-         unwrapDecrypt,
+         unwrapDecrypt, 
          unwrapSign,
-         importECDHPublicKey,
-         ECDHDeriveEncrypt,
-         ECDHDeriveSign,
-         importAesKWKey,      
-        } from "./CryptoUtils";
-
-import './App.css';
-import { getQueriesForElement } from "@testing-library/react";
-import { AES } from "crypto-js";
+         importECDHPublicKey, 
+         ECDHDeriveEncrypt, 
+         ECDHDeriveSign, 
+         generateTokenOrNonce,
+         exportCryptoKeyFromJwk,
+        } from './CryptoUtils';
 
 const INVITE_URL = "https://localhost:7125/api/Transactions/Invite";
 const REGISTER_URL = "https://localhost:7125/api/Transactions/Register";
@@ -33,164 +34,44 @@ const REKEY_URL = "https://localhost:7125/api/Transactions/Rekey";
 const LOGIN_URL = "https://localhost:7125/api/Transactions/Login";
 const SESSION_URL = "https://localhost:7125/api/Transactions/Session"; 
 
+const NUM_SERVERS=3;
 const OWNER_CODE = "1234";
 const INVITE_CODE = "5678"
-const NUM_SERVERS = 3;
+const numServers= NUM_SERVERS;
 const MY_PASSWORD = "Password";
 
-let g_storedDeviceID;
-let g_storedLOGIN_ENCRYPTS;
-let g_storedLOGIN_SIGNS;
-let g_storedDS_PRIV;
-let g_storedDE_PRIV;
-let g_storedSE_PUB;
-let g_storedWSECRET;
-let g_storedWENCRYPTS;
-let g_storedWSIGNS;
-let g_rekeyTime;
-let g_storedNONCE;
-let g_storedTOKEN;
-let g_storedSessionENCRYPTS;
-let g_storedSessionSIGNS;
-
-async function storeDeviceID(devideID) {
-  g_storedDeviceID = devideID;
-}
-
-async function storePreENCRYPTS(LOGIN_ENCRYPTS) {
-  g_storedLOGIN_ENCRYPTS = LOGIN_ENCRYPTS;
-}
-
-async function storePreSIGNS(LOGIN_SIGNS) {
-  g_storedLOGIN_SIGNS = LOGIN_SIGNS;
-}
-
-async function storeDS_PRIV(DS_PRIV) {
-  g_storedDS_PRIV = DS_PRIV;
-}
-
-async function storeDE_PRIV(DE_PRIV) {
-  g_storedDE_PRIV = DE_PRIV;
-}
-
-async function storeSE_PUB(SE_PUB) {
-  g_storedSE_PUB = SE_PUB;
-}
-
-async function storeWSECRET(wSECRET) {
-  g_storedWSECRET = wSECRET;
-}
-
-async function storeWENCRYPTS(wENCRYPTS) {
-  g_storedWENCRYPTS = wENCRYPTS;
-}
-
-async function storeWSIGNS(wSIGNS) {
-  g_storedWSIGNS = wSIGNS;
-}
-
-async function getStoredDeviceID() {
-  return g_storedDeviceID;
-}
-
-async function storeSessionENCRYPTS(ENCRYPTS) {
-  g_storedSessionENCRYPTS = ENCRYPTS;
-}
-
-async function storeSessionSIGNS(SIGNS) {
-  g_storedSessionSIGNS = SIGNS;
-}
 
 
-async function getStoredPreENCRYPTS() {  
-  let LOGIN_ENCRYPTS = [];
-  for (let i = 0; i < g_storedLOGIN_ENCRYPTS.length; i++) {
-    let cryptoKey = await importAesGcmKey(g_storedLOGIN_ENCRYPTS[i]);
-    LOGIN_ENCRYPTS.push(cryptoKey);
-  }
-  return LOGIN_ENCRYPTS;
-}
 
-async function getStoredPreSIGNS() { 
-  let LOGIN_SIGNS = [];
-  for (let i = 0; i < g_storedLOGIN_SIGNS.length; i++) {
-    let cryptoKey = await importHmacKey(g_storedLOGIN_SIGNS[i]);
-    LOGIN_SIGNS.push(cryptoKey);
-  }  
-  return LOGIN_SIGNS;
-}
+let wrapKeyWithKeyAesKW;
+//let rekeyOperation;
+let wrapKeyWithNonceOrToken;
 
-async function storeRekeyTime(rekeyTime) {
-  g_rekeyTime = rekeyTime;
-}
+function App() {
+  const [loginKeys, setLoginKeys] = useState({ encrypts: null, signs: null });
+  const [deviceCode, setDeviceCode] = useState("1234");
+  const [inviteCode, setInviteCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [transactionData, setTransactionData]= useState({});
+  
 
-async function storeNONCEInMem(NONCE) {
-  g_storedNONCE = NONCE;
-}
+  useEffect(() => {
+    const rekeyIfNeeded = async () => {
+      const rekeyPeriod = 1000 * 60 * 60 * 24; 
+      const rekeyTime = new Date(localStorage.getItem('rekeyTime'));
+      const timeNow = new Date();
+      if (rekeyTime && (rekeyTime.getTime() + rekeyPeriod) > timeNow.getTime()) {
+        const TOKEN = await getTokenFromSession(); 
+        await handleRekeyWithToken(TOKEN); 
+      }
+    };
 
-async function storeTOKENInMem(TOKEN) {
-  g_storedTOKEN = TOKEN;
-}
+    rekeyIfNeeded();
+  }, []);
 
-async function getStoredDS_PRIV() {
-  return g_storedDS_PRIV;
-}
-
-async function getStoredDE_PRIV() {
-  return g_storedDE_PRIV;
-}
-
-async function getStoredSE_PUB() {
-  return g_storedSE_PUB;
-}
-
-async function getStoredWSECRET() {
-  return g_storedWSECRET;
-}
-
-async function getStoredWENCRYPTS() {
-  return g_storedWENCRYPTS;
-}
-
-async function getStoredWSIGNS() {
-  return g_storedWSIGNS;
-}
-
-async function getReleyTime() {
-    return g_rekeyTime;
-}
-
-async function getStoredNONCEFromMem() {
-  return g_storedNONCE;
-}
-
-async function getStoredTOKENFromMem() {
-  return g_storedTOKEN;
-}
-
-async function getStoredSessionENCRYPTS() { 
-  /* 
-  let ENCRYPTS = [];
-  for (let i = 0; i < g_storedSessionENCRYPTS.length; i++) {
-    let cryptoKey = await importAesGcmKey(g_storedSessionENCRYPTS[i]);
-    ENCRYPTS.push(cryptoKey);
-  }*/
-  return g_storedSessionENCRYPTS;
-}
-
-async function getStoredSessionSIGNS() { 
-  /*
-  let SIGNS = [];
-  for (let i = 0; i < g_storedSessionSIGNS.length; i++) {
-    let cryptoKey = await importHmacKey(g_storedSessionSIGNS[i]);
-    SIGNS.push(cryptoKey);
-  } */ 
-  return g_storedSessionSIGNS;
-}
-
-
-const invite = async() => {
-   
+const handleInvite = async () => {
+    
   const numServers = NUM_SERVERS; 
   // we are using the device.CODE for the test app, but production app will 
   // allow any logged-in user to invite others
@@ -238,8 +119,8 @@ const invite = async() => {
 
   // Send transaction to server
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, INVITE_URL, numServers, inviteTransaction);
-  console.log("Response: ", response);  
-}
+  console.log("Response: ", response);
+};
 
 const createNewSecretAndWKeys = async(numServers, deviceCode) => { 
   // NONCE  previously sent to server + TOKEN must be defined in memory before this block runs
@@ -274,7 +155,7 @@ const createNewSecretAndWKeys = async(numServers, deviceCode) => {
   await storeWSECRET(wSECRET); 
 }
 
-const register = async() => {
+const handleRegisterWithInvite = async (inviteCode2) => {
       
   const numServers = NUM_SERVERS;
 
@@ -332,10 +213,12 @@ const register = async() => {
   let response = await encryptDataAndSendtoServer(deviceENCRYPTS, deviceSIGNS, deviceID, REGISTER_URL, numServers, registerTransaction);
   console.log("response: ", response);  
   await createNewSecretAndWKeys(numServers, inviteCode);
-} 
 
-const rekey  = async() => { 
+};
 
+
+const handleRekeyWithToken = async (TOKEN) => {
+  
   const numServers = NUM_SERVERS;
 
   // store rekeyTime = timeNow
@@ -416,11 +299,11 @@ const rekey  = async() => {
   await storePreSIGNS(preSIGNS);
 
   const deviceCode = INVITE_CODE; 
-  await createNewSecretAndWKeys(numServers, deviceCode);  
+  await createNewSecretAndWKeys(numServers, deviceCode);
 }
 
-const login = async() => {
-  
+const handleLogin = async () => {
+ 
   // We have 3 servers 
   const numServers = NUM_SERVERS;
   
@@ -482,10 +365,10 @@ const login = async() => {
     //await rekey(TOKEN); // Call rekey with the TOKEN
   }
  
-} 
-
+};
+   
 const session = async() => {
-
+   
   const ENCRYPTS = await getStoredSessionENCRYPTS();
   const SIGNS = await getStoredSessionSIGNS();
   const deviceID = await getStoredDeviceID();
@@ -498,29 +381,296 @@ const session = async() => {
   // Send transaction to server
   let response = await encryptDataAndSendtoServer(ENCRYPTS, SIGNS, deviceID, SESSION_URL, NUM_SERVERS, sessionTransaction);
   console.log("Response: ", response);  
-}
-
-function App() {  
-
-  async function handleClick() {
-  
-    await invite();
-  
   }
 
-  return (
-    <div className="App">
-    <header className="App-header"> 
-      <button onClick={invite}>Invite</button>
-      <button onClick={register}>Register</button>
-      <button onClick={rekey}>Rekey</button>
-      <button onClick={login}>Login</button>
-      <button onClick={session}>Session</button>
+async function getTokenFromSession() {
+  // Implement according to your session management logic
+  return localStorage.getItem('sessionToken'); 
+}
+
+function generateInviteCode() {
+  return Math.random().toString(36).substring(2, 10); 
+}
+/*
+async function sendToServer(endpoint, data) {
+  try {
+    let responseData;   
+    await axios
+      .post(endpoint, data, {
+        headers: {
+          "Content-Type": "application/octet-stream",
+          'Access-Control-Allow-Credentials':true,
+          "Access-Control-Allow-Origin": "*",
+          "Accept" : "application/octet-stream",                   
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        //responseType: 'blob'
+      })
+      .then((response) => {         
+        responseData = response.data;       
+      })
+      .catch((error) => {
+        console.error("Error sending data to backend:", error);
+      });
+           
+      let CBOR = await cbor.decode(base64ToArrayBuffer(responseData));      
+
+      return CBOR;
+
+    //return await cbor.decode(base64ToArrayBuffer(response.data));
+  } catch (error) {
+    console.error("Error sending data to backend:", error);
+    return null;
+  }
+}
+*/
+function base64ToArrayBuffer(base64) {
+  try {
+    base64 = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+    var binaryString = atob(base64);
+    var bytes = new Uint8Array(binaryString.length);
+    for (var i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  } catch (e) {
+    console.error("Failed to convert base64 to array buffer:", e);
+    return null;
+  }
+}
+
+{/* function base64ToArrayBuffer(base64) {
+  var binaryString = atob(base64);
+  var bytes = new Uint8Array(binaryString.length);
+  for (var i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}*/}
+
+{/*function storeKeysInSessionMemory(signs, encrypts) {
+  // Implement the logic to store keys in session memory
+  sessionStorage.setItem('signs', JSON.stringify(signs));
+  sessionStorage.setItem('encrypts', JSON.stringify(encrypts));
+}*/}
+
+
+function storeDS_PRIV(DS_PRIV) {
+  localStorage.setItem('DS_PRIV', JSON.stringify(DS_PRIV));
+}
+
+function storeDE_PRIV(DE_PRIV) {
+  localStorage.setItem('DE_PRIV', JSON.stringify(DE_PRIV));
+}
+
+async function storeSessionENCRYPTS(ENCRYPTS) { 
+  const jwkPreENCRYPT = ENCRYPTS.map(key => exportCryptoKeyToJwk(key));
+  // Store the JWKs as a JSON string in localStorage
+  localStorage.setItem('sessionENCRYPTS', JSON.stringify(jwkPreENCRYPT));
+}
+
+async function storeSessionSIGNS(SIGNS) { 
+  const jwkPreSIGNS = SIGNS.map(key => exportCryptoKeyToJwk(key));
+  // Store the JWKs as a JSON string in localStorage
+  localStorage.setItem('sessionSIGNS', JSON.stringify(jwkPreSIGNS));
+}
+
+async function getStoredSessionENCRYPTS() {
+  // Assuming ENCRYPTS keys are stored as a JSON string in localStorage
+  const encryptsJson = localStorage.getItem('sessionENCRYPTS');
+  if (!encryptsJson) return [];
+  const encrypts = JSON.parse(encryptsJson);
+  // Assuming encrypts are stored as JWKs, convert them back to CryptoKeys
+  return Promise.all(encrypts.map(jwk => exportCryptoKeyToJwk(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"])));
+}
+
+async function getStoredSessionSIGNS() {
+  // Assuming SIGNS keys are stored as a JSON string in localStorage
+  const signsJson = localStorage.getItem('sessionSIGNS');
+  if (!signsJson) return [];
+  const signs = JSON.parse(signsJson);
+  // Assuming signs are stored as JWKs, convert them back to CryptoKeys
+  return Promise.all(signs.map(jwk => exportCryptoKeyToJwk(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
+}
+
+async function getStoredDeviceID() {
+  // Assuming the device ID is stored directly as a string in localStorage
+  return localStorage.getItem('deviceID');
+}
+
+function storeRekeyTime(rekeyTime) {
+  localStorage.setItem('rekeyTime', rekeyTime.toString());
+}
+
+async function getStoredWENCRYPTS() {
+  // Assuming wENCRYPTS keys are stored as a JSON string in localStorage
+  const wEncryptsJson = localStorage.getItem('wENCRYPTS');
+  if (!wEncryptsJson) return [];
+  const wEncrypts = JSON.parse(wEncryptsJson);
+  // Assuming wEncrypts are stored as JWKs, convert them back to CryptoKeys
+  return Promise.all(wEncrypts.map(jwk => importAesGcmKey(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"])));
+}
+
+async function getStoredWSIGNS() {
+  // Assuming WSIGNS keys are stored as a JSON string in localStorage
+  const wSignsJson = localStorage.getItem('wSIGNS');
+  if (!wSignsJson) return [];
+  const wSigns = JSON.parse(wSignsJson);
+  // Assuming wSigns are stored as JWKs, convert them back to CryptoKeys
+  return Promise.all(wSigns.map(jwk => importHmacKey(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
+}
+
+async function getStoredNONCEFromMem() {
+  // Assuming the NONCE is stored directly as a string in sessionStorage
+  const jwkString = sessionStorage.getItem('NONCE');
+  const jwk = JSON.parse(jwkString);
+  const key = await window.crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    {
+      name: "AES-KW",
+      length: 256,
+    },
+    true, //whether the key is extractable (i.e. can be used in exportKey)
+    ["wrapKey", "unwrapKey"]
+  );
+
+  return key;
+}
+
+function storePreENCRYPTS(preENCRYPTS) {
+  // Convert the CryptoKeys to JWK format for storage
+  const jwkPreENCRYPTS = preENCRYPTS.map(key => exportCryptoKeyToJwk(key));
+  // Store the JWKs as a JSON string in localStorage
+  localStorage.setItem('preENCRYPTS', JSON.stringify(jwkPreENCRYPTS));
+}
+
+async function getStoredPreENCRYPTS() {
+  // Assuming preENCRYPTS keys are stored as a JSON string in localStorage
+  const preENCRYPTSJson = localStorage.getItem('preENCRYPTS');
+  if (!preENCRYPTSJson) return [];
+  const preENCRYPTS = JSON.parse(preENCRYPTSJson);
+  // Assuming preENCRYPTS are stored as JWKs, convert them back to CryptoKeys
+  return Promise.all(preENCRYPTS.map(jwk => importAesGcmKey(jwk, {name: "AES-GCM"}, ["encrypt", "decrypt"]))); 
+}
+
+function storePreSIGNS(preSIGNS) {
+  // Convert the CryptoKeys to JWK format for storage
+  const jwkPreSIGNS = preSIGNS.map(key => exportCryptoKeyToJwk(key));
+  // Store the JWKs as a JSON string in localStorage
+  localStorage.setItem('preSIGNS', JSON.stringify(jwkPreSIGNS));
+}
+
+function getStoredPreSIGNS() {
+    // Assuming preSIGNS keys are stored as a JSON string in localStorage
+    const preSIGNSJson = localStorage.getItem('preSIGNS');
+    if (!preSIGNSJson) return [];
+    const preSIGNS = JSON.parse(preSIGNSJson);
+    // Assuming preSIGNS are stored as JWKs, convert them back to CryptoKeys
+    return Promise.all(preSIGNS.map(jwk => importHmacKey(jwk, {name: "HMAC", hash: {name: "SHA-256"}}, ["sign", "verify"])));
+}
+
+function storeWSECRET(wSECRET) {
+  localStorage.setItem('wSECRET', JSON.stringify(wSECRET));
+}
+
+function storeDeviceID(deviceID) {
+  localStorage.setItem('deviceID', JSON.stringify(deviceID));
+}
+
+async function storeTOKENInMem(TOKEN) {
+  const jwk = await window.crypto.subtle.exportKey("jwk", TOKEN);  
+  const jwkString = JSON.stringify(jwk);
+  localStorage.setItem('TOKEN', jwkString);
+}
+
+async function storeNONCEInMem(NONCE) {
+  const jwk = await window.crypto.subtle.exportKey("jwk", NONCE);  
+  const jwkString = JSON.stringify(jwk);
+  localStorage.setItem('NONCE', jwkString);
+}
+
+function storeWENCRYPTS(wENCRYPTS) {
+  localStorage.setItem('wENCRYPTS', JSON.stringify(wENCRYPTS));
+}
+
+function storeWSIGNS(wSIGNS) {
+  localStorage.setItem('wSIGNS', JSON.stringify(wSIGNS));
+}
+
+function getReleyTime(rekeyTime) {
+  localStorage.setItem('rekeyTime', JSON.stringify(rekeyTime));
+}
+
+async function getStoredTOKENFromMem() {
+  // Assuming the TOKEN is stored directly as a string in sessionStorage  
+  const jwkString = sessionStorage.getItem('TOKEN');
+  const jwk = JSON.parse(jwkString);
+  const key = await window.crypto.subtle.importKey(
+    "jwk",
+    jwk,
+    {
+      name: "AES-KW",
+      length: 256,
+    },
+    true, //whether the key is extractable (i.e. can be used in exportKey)
+    ["wrapKey", "unwrapKey"]
+  );
+
+  return key;
+}
+
+async function getStoredWSECRET() {
+  const wSecretJson = localStorage.getItem('wSECRET');
+  if (!wSecretJson) return null;
+  return JSON.parse(wSecretJson);
+}
+
+return (
+  <div className="App">
+    <header className="App-header">
+      <h1>Secure Transaction System</h1>
+      <div>
+        <input
+          type="text"
+          value={deviceCode}
+          onChange={(e) => setDeviceCode(e.target.value)}
+          placeholder="Enter Device Code"
+        />
+        <input
+          type="text"
+          placeholder="Enter Invite Code for Registration"
+          onChange={(e) => setInviteCode(e.target.value)}
+        />
+        <input
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          placeholder="Generate Invite Code"
+        />
+        <button onClick={handleInvite}>Generate and Send Invite</button>
+        <input
+          type="password"
+          placeholder="Enter Password for Registration"
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button onClick={() => handleRegisterWithInvite(inviteCode, password)}>Register with Invite</button>
+        <button onClick={() => handleRekeyWithToken()}>Rekey with Token</button>
+        <button onClick={handleLogin}>Login</button>
+        
+        <div>
+          <input
+            type="text"
+            placeholder="Enter Transaction Data"
+            onChange={(e) => setTransactionData(JSON.parse(e.target.value || '{}'))}
+          />
+          <button onClick={session}>Start Session and Send Transaction</button>
+        </div>
+      </div>
     </header>
   </div>
-
-    
-  );
+);
 }
+
 
 export default App;
