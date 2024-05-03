@@ -160,13 +160,13 @@ const createNewSecretAndWKeys = async(numServers, deviceCode) => {
   await storeWSECRET(wSECRET); 
 }
 
-const handleRegisterWithInvite = async (inviteCode2) => {
+const handleRegisterWithInvite = async (inviteCode, password) => {
       
   const numServers = NUM_SERVERS;
 
   // the new user needs to open the web app in a browser, then register using the invite.CODE
   // get invite.CODE from the user
-  const inviteCode = INVITE_CODE; 
+  //const inviteCode = INVITE_CODE; 
    
   // derive device.id + device.SECRET
   const deviceID = await deriveRawID(inviteCode); 
@@ -188,7 +188,7 @@ const handleRegisterWithInvite = async (inviteCode2) => {
   const rawNONCE = await exportCryptoKeyToRaw(NONCE);
 
   // create PASSWORD as TEXT entered by the new user on their device
-  const PASSWORD = MY_PASSWORD;
+  const PASSWORD = password;//MY_PASSWORD;
   
   // derive PASSKEY FROM PASSWORD using PBKDF2
   const PASSKEY = await derivePBKDF2Key(PASSWORD);
