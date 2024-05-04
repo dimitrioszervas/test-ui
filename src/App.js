@@ -58,7 +58,7 @@ function App() {
   const [inviteCode, setInviteCode] = useState('');
   const [password, setPassword] = useState('');
   const [sessionId, setSessionId] = useState('');
-  const [transactionData, setTransactionData]= useState({});
+  const [transactionData, setTransactionData]= useState('');
   
 
   useEffect(() => {
@@ -305,7 +305,7 @@ const handleRekeyWithToken = async (TOKEN) => {
   await createNewSecretAndWKeys(numServers, deviceCode);   
 }
 
-const handleLogin = async () => {
+const handleLogin = async (password) => {
  
   // We have 3 servers 
   const numServers = NUM_SERVERS;
@@ -337,7 +337,7 @@ const handleLogin = async () => {
   const wTOKEN = new Uint8Array(response.wTOKEN);  
 
   //  get PASSWORD, wSECRET
-  const PASSWORD = MY_PASSWORD;
+  const PASSWORD = password;
   const PASSKEY = await derivePBKDF2Key(PASSWORD);
   const wSECRET = await getStoredWSECRET();
 
@@ -369,13 +369,13 @@ const handleLogin = async () => {
   }
   };
    
-    const session = async() => {
+   const session = async(data) => {
 
       const ENCRYPTS = await getStoredSessionENCRYPTS();
       const SIGNS = await getStoredSessionSIGNS();
       const deviceID = await getStoredDeviceID();
     
-      const MSG = "HELLO!";
+      const MSG = data;
       let sessionTransaction = {
         MSG
       };
@@ -646,15 +646,16 @@ return (
         />
         <button onClick={() => handleRegisterWithInvite(inviteCode, password)}>Register with Invite</button>
         <button onClick={() => handleRekeyWithToken()}>Rekey with Token</button>
-        <button onClick={handleLogin}>Login</button>
+        <button onClick={() => handleLogin(password)}>Login</button>
         
         <div>
           <input
             type="text"
+            value={transactionData}
             placeholder="Enter Transaction Data"
-            onChange={(e) => setTransactionData(JSON.parse(e.target.value || '{}'))}
+            onChange={(e) => setTransactionData(e.target.value)}
           />
-          <button onClick={session}>Start Session and Send Transaction</button>
+          <button onClick={() => session(transactionData)}>Start Session and Send Transaction</button>
         </div>
       </div>
     </header>
